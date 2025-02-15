@@ -20,18 +20,16 @@ class wiki(commands.Cog):
         search: str):
 
         searchresults = self.deltafallwiki.search(search)
-        page = self.deltafallwiki.page(searchresults[0])
+        url = f"https://deltafall.miraheze.org/wiki/{searchresults[0].replace(" ", "_")}"
 
         # we are parsing the entire html because if we use wikitext it is basically impossible to control the formatting.
         # and if we request the html from the api it doesnt return the useful stuff which is bad.
-
-        url = page.url
 
         HTMLcontent = ""
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as response:
                 HTMLcontent = await response.text()
-        HTMLcontent = BeautifulSoup(HTMLcontent, features="html.parser")
+        HTMLcontent = BeautifulSoup(HTMLcontent, features="lxml")
 
         title = HTMLcontent.body.find("span", attrs={"class": "mw-page-title-main"}).text.strip()
         siteSub = HTMLcontent.body.find("div", attrs={"id": "siteSub"}).text.strip() 

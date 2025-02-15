@@ -11,3 +11,4 @@ plyvel
 beautifulsoup4
 aiohttp
 pymediawiki
+lxml
