@@ -1,2 +1,4 @@
 env/
-token.yml
+config.json
+valentine/
+__pycache__/

@@ -3,8 +3,10 @@ pillow
 pet-pet-gif
 pilmoji
 python-urbandict
-wavelink
 psutil
 pyyaml
-colorama
+sqlitecloud
 praw
+plyvel
+beautifulsoup4
+aiohttp
