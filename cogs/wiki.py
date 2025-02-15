@@ -4,20 +4,28 @@ from discord import app_commands
 from typing import Optional
 from bs4 import BeautifulSoup
 import aiohttp
+from mediawiki import MediaWiki
 import re
 
 
 class wiki(commands.Cog):
     def __init__(self, bot):
+        self.deltafallwiki = MediaWiki(url="https://deltafall.miraheze.org/w/api.php")
         self.bot = bot
 
     @app_commands.command(name="wiki", description="deltafall wiki content")
     async def dfwiki(
         self,
         interaction: discord.Interaction,
-        page: str):
+        search: str):
 
-        url = f"https://deltafall.miraheze.org/wiki/{page.replace(" ", "_")}"
+        searchresults = self.deltafallwiki.search(search)
+        page = self.deltafallwiki.page(searchresults[0])
+
+        # we are parsing the entire html because if we use wikitext it is basically impossible to control the formatting.
+        # and if we request the html from the api it doesnt return the useful stuff which is bad.
+
+        url = page.url
 
         HTMLcontent = ""
         async with aiohttp.ClientSession() as session:
@@ -31,14 +39,13 @@ class wiki(commands.Cog):
        
         mainContent = HTMLcontent.body.find("div", attrs={"id":"mw-content-text", "class": "mw-body-content"})
         images = []
-        previewImage = None
+        previewImage = "https://static.wikitide.net/deltafallwiki/f/f2/Deltafall_Wiki_logo.png"
         for img in mainContent.find_all("img"):
             if "class" in img.attrs and img["class"][0] == "mw-file-element" and img["src"] != "https://upload.wikimedia.org/wikipedia/commons/8/80/Wikipedia-logo-v2.svg": images.append(img["src"])
         if len(images) > 0:
             imgUrl = images[0]
             if not imgUrl.startswith('https'): imgUrl = "https:" + imgUrl
             previewImage = imgUrl
-
 
         parsed = []
         for e in mainContent.find_all("section"):
@@ -52,6 +59,8 @@ class wiki(commands.Cog):
                     case "blockquote":
                         content.append("\n".join([ f"- {await self.removecitation(quote)}" for quote in n.text.strip().split("\n") ]))
             parsed.append("\n".join(content))
+
+        # formatting
 
         content=f"# [{title}]({url})"
         content += "\n"+parsed[0]

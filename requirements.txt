@@ -10,3 +10,4 @@ praw
 plyvel
 beautifulsoup4
 aiohttp
+pymediawiki
