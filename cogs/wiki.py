@@ -4,26 +4,73 @@ from discord import app_commands
 from typing import Optional
 from bs4 import BeautifulSoup
 import aiohttp
-from mediawiki import MediaWiki
+import mediawiki
 import re
 
+from wiki import namuwikitextparser
 
 class wiki(commands.Cog):
     def __init__(self, bot):
-        self.deltafallwiki = MediaWiki(url="https://deltafall.miraheze.org/w/api.php")
+        self.deltafallwiki = mediawiki.MediaWiki(url="https://deltafall.miraheze.org/w/api.php")
         self.bot = bot
 
-    @app_commands.command(name="wiki", description="deltafall wiki content")
-    async def dfwiki(
-        self,
-        interaction: discord.Interaction,
-        search: str):
+    async def getwikiembed(self, page: mediawiki.MediaWikiPage):
+        linestr=f"# [{page.title}]({page.url})\n"
+        parser=namuwikitextparser.WikitextParser()
+        wiki=await parser.parse(page.wikitext)
 
-        searchresults = self.deltafallwiki.search(search)
-        url = f"https://deltafall.miraheze.org/wiki/{searchresults[0].replace(" ", "_")}"
+        lastgroupstring = None
+        groups = {}
+        for string in wiki[0]:
+            nowrite=False
 
-        # we are parsing the entire html because if we use wikitext it is basically impossible to control the formatting.
-        # and if we request the html from the api it doesnt return the useful stuff which is bad.
+            formatted=string.text
+            if string.link: formatted=f"[{string.text}]({string.link.replace(" ", "_")})"
+            elif string.headerlevel > 1: formatted=f"{''.join("#" for hashtag in range(string.headerlevel-1))} {string.text}"
+
+            if string.tags:
+                for tag in string.tags:
+                    match tag.name:
+                        case "blockquote":
+                            formatted = f"-# {formatted}"
+                        case "ref":
+                            if "group" in tag.attributes:
+                                if not tag.attributes["group"] in groups: groups[tag.attributes["group"]]=[]
+                                if lastgroupstring and string.id == lastgroupstring.id:
+                                    groups[tag.attributes["group"]][-1] += formatted
+                                    nowrite=True
+                                else:
+                                    groups[tag.attributes["group"]].append(formatted)
+                                    formatted=f"**[footnote {len(groups[tag.attributes["group"]])}]**"
+
+                                lastgroupstring = string
+                                continue
+
+                            formatted = f"**[ref]({string.text})**"
+
+            if nowrite: continue
+            linestr+=formatted
+        linestr=linestr.strip()
+
+        for attr in groups:
+            match attr:
+                case "footnote":
+                    linestr+="\n\n### Footnotes\n"
+                    for item in range(len(groups[attr])):
+                        linestr+=f"{item+1}. {groups[attr][item]}"
+
+        title=None
+        if "SHORTDESC" in wiki[1]: title=wiki[1]["SHORTDESC"][0]
+        embed=discord.Embed(title=title, description=linestr, color=0x4034eb)
+        images=page.images[:-1]
+        if len(images) > 0: embed.set_thumbnail(url=images[0])
+
+        return embed
+
+    async def removecitation(self, text):
+        return re.sub(r'\[[^\]]*\]', '', text)
+    async def getwikiembedCompat(self, url: str):
+        # we are parsing the entire html because if we use mediawiki api sometime it doesnt redirect to other sites.
 
         HTMLcontent = ""
         async with aiohttp.ClientSession() as session:
@@ -47,7 +94,6 @@ class wiki(commands.Cog):
 
         parsed = []
         for e in mainContent.find_all("section"):
-            #index = int(e["id"][16:])
             content = []
             for n in e.contents:
                 match n.name:
@@ -55,7 +101,10 @@ class wiki(commands.Cog):
                         t = (await self.removecitation(n.text)).strip()
                         if t != "": content.append(t)
                     case "blockquote":
+                        content.append("\n".join([ f"-# - *{await self.removecitation(quote)}*" for quote in n.text.strip().split("\n") ]))
+                    case "ul":
                         content.append("\n".join([ f"- {await self.removecitation(quote)}" for quote in n.text.strip().split("\n") ]))
+
             parsed.append("\n".join(content))
 
         # formatting
@@ -68,10 +117,21 @@ class wiki(commands.Cog):
 
         embed=discord.Embed(title=siteSub, description=content, color=0x4034eb)
         embed.set_thumbnail(url=previewImage)
+        return embed
+
+    @app_commands.command(name="wiki", description="deltafall wiki content")
+    async def dfwiki(
+        self,
+        interaction: discord.Interaction,
+        search: str):
+
+        searchresults = self.deltafallwiki.search(search)
+        page = self.deltafallwiki.page(searchresults[0])
+        embed=None
+
+        try: embed = await self.getwikiembed(page)
+        except: embed = await self.getwikiembedCompat(f"https://deltafall.miraheze.org/wiki/{searchresults[0].replace(" ", "_")}")
         await interaction.response.send_message(embed=embed)
-
-    async def removecitation(self, text):
-        return re.sub(r'\[[^\]]*\]', '', text)
-
+    
 async def setup(bot):
     await bot.add_cog(wiki(bot))
