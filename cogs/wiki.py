@@ -7,7 +7,7 @@ import aiohttp
 import mediawiki
 import re
 
-from wiki import namuwikitextparser
+from namuwikitextparser import namuwikitextparser, discordformatwikitext
 
 class wiki(commands.Cog):
     def __init__(self, bot):
@@ -15,53 +15,14 @@ class wiki(commands.Cog):
         self.bot = bot
 
     async def getwikiembed(self, page: mediawiki.MediaWikiPage):
-        linestr=f"# [{page.title}]({page.url})\n"
         parser=namuwikitextparser.WikitextParser()
         wiki=await parser.parse(page.wikitext)
-
-        lastgroupstring = None
-        groups = {}
-        for string in wiki[0]:
-            nowrite=False
-
-            formatted=string.text
-            if string.link: formatted=f"[{string.text}]({string.link.replace(" ", "_")})"
-            elif string.headerlevel > 1: formatted=f"{''.join("#" for hashtag in range(string.headerlevel-1))} {string.text}"
-
-            if string.tags:
-                for tag in string.tags:
-                    match tag.name:
-                        case "blockquote":
-                            formatted = f"-# {formatted}"
-                        case "ref":
-                            if "group" in tag.attributes:
-                                if not tag.attributes["group"] in groups: groups[tag.attributes["group"]]=[]
-                                if lastgroupstring and string.id == lastgroupstring.id:
-                                    groups[tag.attributes["group"]][-1] += formatted
-                                    nowrite=True
-                                else:
-                                    groups[tag.attributes["group"]].append(formatted)
-                                    formatted=f"**[footnote {len(groups[tag.attributes["group"]])}]**"
-
-                                lastgroupstring = string
-                                continue
-
-                            formatted = f"**[ref]({string.text})**"
-
-            if nowrite: continue
-            linestr+=formatted
-        linestr=linestr.strip()
-
-        for attr in groups:
-            match attr:
-                case "footnote":
-                    linestr+="\n\n### Footnotes\n"
-                    for item in range(len(groups[attr])):
-                        linestr+=f"{item+1}. {groups[attr][item]}"
+        formattedwiki=await discordformatwikitext.format(wiki[0])
+        formattedwiki=f"# [{page.title}]({page.url})\n"+formattedwiki
 
         title=None
         if "SHORTDESC" in wiki[1]: title=wiki[1]["SHORTDESC"][0]
-        embed=discord.Embed(title=title, description=linestr, color=0x4034eb)
+        embed=discord.Embed(title=title, description=formattedwiki, color=0x4034eb)
         images=page.images[:-1]
         if len(images) > 0: embed.set_thumbnail(url=images[0])
 
