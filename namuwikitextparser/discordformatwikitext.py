@@ -52,8 +52,7 @@ async def format(wiki: List[namuwikitextparser.CustomString]):
 
                             lastgroupstring = string
                             continue
-
-                        formatted = f" *[[ref]]({string.text})* "
+                        if string.text.startswith("http") and not string.link: formatted = f" *[[ref]]({string.text})* "
 
         linestr+=formatted
     linestr=linestr.strip()

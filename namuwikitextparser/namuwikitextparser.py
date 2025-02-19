@@ -152,15 +152,15 @@ class WikitextParser():
             index+=1
             
     async def parseHeader(self, line: List[CustomString]):
-        if len(line)>0:
+        if line:
             text=line[0].text
             if text.startswith("=") and text.endswith("="):
-                header=text.split(" ")
-                line[0].text = header[1]
-                line[0].headerlevel = len(header[0])
+                header=text[:text.rfind(" ")][text.find(" "):].strip()
+                line[0].text = header
+                line[0].headerlevel = len(text[:text.find(" ")])
 
     async def parseLists(self, line: List[CustomString]):
-        if len(line)>0:
+        if line:
             match line[0].text[:2]:
                 case "# ":
                     if self.lastList and self.lastList.isNumberedList and (line[0].id - self.lastList.id == 1): self.listCount += 1
