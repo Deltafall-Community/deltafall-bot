@@ -16,7 +16,7 @@ class wiki(commands.Cog):
 
     async def getwikiembed(self, page: mediawiki.MediaWikiPage):
         parser=namuwikitextparser.WikitextParser()
-        wiki=await parser.parse(page.wikitext)
+        wiki=await parser.parse(page.wikitext, "https://deltafall.miraheze.org/wiki")
         formattedwiki=await discordformatwikitext.format(wiki[0])
         formattedwiki=f"# [{page.title}]({page.url})\n"+formattedwiki
 
