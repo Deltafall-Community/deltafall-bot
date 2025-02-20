@@ -66,7 +66,7 @@ class WikitextParser():
             while True:
                 startref=section.text.find("[[")
                 endref=section.text.find("]]")
-                if startref==-1 and endref==-1: break
+                if startref==-1 or endref==-1: break
 
                 refLeft=section.text[:startref]
                 refText=section.text[startref+2:][:endref-startref-2]
@@ -92,7 +92,7 @@ class WikitextParser():
             while True:
                 startingtag=section.text.find("<")
                 endtag=section.text.find(">")
-                if startingtag==-1 and endtag==-1: break
+                if startingtag==-1 or endtag==-1: break
 
                 tagcontent=section.text[startingtag+1:][:endtag-startingtag-1].strip().split(" ", 1)
                 tagLeft=section.text[:startingtag]
@@ -155,9 +155,16 @@ class WikitextParser():
         if line:
             text=line[0].text
             if text.startswith("=") and text.endswith("="):
-                header=text[:text.rfind(" ")][text.find(" "):].strip()
+                startingheaderchar = None
+                endingheaderchar = None
+                for char, index in zip(text, range(len(text))):
+                    if not startingheaderchar and char != "=" : startingheaderchar = index
+                    elif startingheaderchar and char == "=":
+                        endingheaderchar = index
+                        break
+                header=text[:endingheaderchar][startingheaderchar:].strip()
                 line[0].text = header
-                line[0].headerlevel = len(text[:text.find(" ")])
+                line[0].headerlevel = len(text[:startingheaderchar])
 
     async def parseLists(self, line: List[CustomString]):
         if line:
@@ -175,8 +182,6 @@ class WikitextParser():
                     for text in line: text.isBulletPointList=True
                     self.lastList = line[-1]
 
-        return line
-
     async def parseWikitext(self, text: str, baseUrl: str, id: int):
         line=[CustomString(text, id=id)]
         await self.parseDirectLink(line, baseUrl)
@@ -185,13 +190,13 @@ class WikitextParser():
         await self.parseLists(line)
         return line
 
-    async def parse(self, wikitext: str):
+    async def parse(self, wikitext: str, baseURL: str):
         globalWorkingSection=None
         parsed=[]
         customdata={}
         # theres no reason to split headers into multiple arrays
         lines=wikitext.split("\n")
-        for lineindex in range(len(lines)): # 
+        for lineindex in range(len(lines)):
             line=lines[lineindex].strip()
             match globalWorkingSection:
                 case ParsingSection.CustomData:
@@ -206,7 +211,7 @@ class WikitextParser():
                         tempvar = line[2:]
                         globalWorkingSection = ParsingSection.CustomData
                     else:
-                        line=await self.parseWikitext(line, "https://deltafall.miraheze.org/wiki", lineindex)
+                        line=await self.parseWikitext(line, baseURL, lineindex)
                         if len(line)<1: continue
                         line[-1].text+="\n"
                         parsed+=line
