@@ -19,6 +19,10 @@ class messagefun(commands.Cog):
         if message.content.lower() == "nerdify":
             messager = await message.channel.fetch_message(message.reference.message_id)
             await message.channel.send(f'ermm akshually {messager.content} - 🤓☝️`{messager.author}`', reference=message, allowed_mentions=discord.AllowedMentions.none())
+        if message.channel.id == 1198291381018443906 and message.author.id in [1170229788435304481, 1222177374142070835] and message.attachments:
+            await message.add_reaction("⭐")
+        if "miku" in message.content.lower():
+            await message.reply("i'm thinking miku miku oo ee oo")
 
 async def setup(bot):
     await bot.add_cog(messagefun(bot))
