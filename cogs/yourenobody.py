@@ -25,11 +25,7 @@ class yourenobody(commands.Cog):
     async def getEmoji(self, bool: bool) -> str:
         if bool: return "✅"
         else: return "❌"
-
-    async def getEmoji(self, bool: bool) -> str:
-        if bool: return "✅"
-        else: return "❌"
-
+        
     @commands.Cog.listener()
     async def on_member_join(self, member):
         if member.guild.id != self.guildid:
