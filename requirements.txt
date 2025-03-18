@@ -1,4 +1,5 @@
 discord.py
+discord.py[voice]
 pillow
 pet-pet-gif
 pilmoji
@@ -12,3 +13,6 @@ beautifulsoup4
 aiohttp
 pymediawiki
 lxml
+asyncinit
+yt_dlp
+ffmpeg-python
