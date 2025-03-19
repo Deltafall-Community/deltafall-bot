@@ -59,6 +59,7 @@ class music(commands.Cog):
         vc = interaction.guild.voice_client
         vc.stop()
         self.delete_guild_player(vc)
+        await vc.disconnect()
         embed = Embed(title="⏹️ Music stopped", description="The music has been stopped.")
         await interaction.response.send_message(embed=embed)
 
