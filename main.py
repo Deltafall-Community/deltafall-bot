@@ -34,10 +34,14 @@ class Bot(commands.Bot):
 
         self.token = self.config["token"]
         self.quote_db = self.connect_quote_db()
+        self.club_db = self.connect_club_db()
         self.valentine_lvl_db = plyvel.DB('valentine', create_if_missing=True)
 
     def connect_quote_db(self):
         return sqlitecloud.connect(self.config["sqlitecloud-quote"])
+
+    def connect_club_db(self):
+        return sqlitecloud.connect(self.config["sqlitecloud-club"])
 
     async def load_extensions(self):
         for file in os.listdir(self.cogsfolder):
