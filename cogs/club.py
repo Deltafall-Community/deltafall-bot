@@ -221,7 +221,9 @@ class club(commands.Cog):
         self.bot = bot
 
     async def get_connection(self):
-        try: self.bot.club_db.cursor()
+        try:
+            cur = self.bot.club_db.cursor()
+            cur.execute("""SELECT 1""")
         except Exception as ex:
             self.bot.club_db = self.bot.connect_club_db()
             return await self.get_connection(self.bot.club_db)
