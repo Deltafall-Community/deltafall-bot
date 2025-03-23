@@ -2,6 +2,7 @@ from typing import Callable
 from enum import Enum
 from typing import Awaitable
 from typing import Any
+from typing import Optional
 from dataclasses import dataclass
 from asyncinit import asyncinit
 from datetime import datetime
@@ -32,6 +33,12 @@ class Status(Enum):
     FINISHED = 2
     FAILED = 3
 
+class PlaybackState(Enum):
+    NOT_PLAYING = 1
+    PLAYING = 2
+    TRANSITIONING = 3
+    FINISHED = 4
+
 # needs to be asynchronous since yt-dlp blocks the main thread.
 @asyncinit
 class YTDLPAudio(discord.AudioSource):
@@ -39,16 +46,18 @@ class YTDLPAudio(discord.AudioSource):
                        url: str,
                        on_finished: Callable[['YTDLPAudio'], Awaitable[Any]] = None,
                        on_loading_finished: Callable[['YTDLPAudio'], Awaitable[Any]] = None,
-                       volume: float = 1.0):
+                       on_read: Callable[['YTDLPAudio', bytes], bytes] = None,
+                       on_clean_up: Callable[['YTDLPAudio'], None] = None):
         self.metadata = Metadata()
         self.extras = {}
 
-        self.is_finished = False
+        self.playback_state = PlaybackState.NOT_PLAYING
         self.loop = False
-        self.volume = volume
         
+        self.on_clean_up = on_clean_up
         self.on_finished = on_finished
         self.on_loading_finished = on_loading_finished
+        self.on_read = on_read
         self.status = Status.LOADING
 
         self.event_loop = asyncio.get_event_loop()
@@ -72,12 +81,30 @@ class YTDLPAudio(discord.AudioSource):
         self.packet_index = 0
         self.packets = []
         self.total_rms = 0
-
+        
         self.lock = threading.Lock()
         executor = ThreadPoolExecutor()
-        await self.event_loop.run_in_executor(executor, self.read_ffmpeg)
+        self.event_loop.run_in_executor(executor, self.read_ffmpeg)
+
+        # wait for the data the reach 1 second of audio (else the read function will end immediately)
+        await self.event_loop.run_in_executor(None, self.wait_for_enough_data)
 
         await self.on_loading_finished(self)
+
+    def finished(self, wait: bool = True) -> None:
+        if self.on_finished:
+            # since this function gets run by discord.py on the different thread
+            # we have to use `run_coroutine_threadsafe`
+            future=asyncio.run_coroutine_threadsafe(self.on_finished(self), self.event_loop)
+            if wait:
+                try: future.result()
+                except Exception: traceback.print_exc()
+    
+    def read_event(self, packet: bytes) -> Optional[bytes]:
+        if self.on_read: return self.on_read(self, packet)
+
+    def wait_for_enough_data(self) -> None:
+        while len(self.packets) < 50: pass
 
     def read_ffmpeg(self) -> None:
         while True:
@@ -119,32 +146,31 @@ class YTDLPAudio(discord.AudioSource):
             
         return url
 
-    async def finished(self) -> None:
-        if self.on_finished: await self.on_finished(self)
-    
     def read(self) -> bytes:
-        packets_count = len(self.packets)
+        if not self.packet_index: self.playback_state = PlaybackState.NOT_PLAYING # there must be a better way to to this
+
         self.packet_index += 1
-        if self.packet_index > packets_count:
-            if self.is_finished: return b''
+        if self.packet_index > len(self.packets):
+            if self.playback_state == PlaybackState.FINISHED: return b''
             if not self.loop:
-                # since this function gets run by discord.py on the different thread
-                # we have to use `run_coroutine_threadsafe`   
-                future=asyncio.run_coroutine_threadsafe(self.finished(), self.event_loop)
-                try: future.result()
-                except Exception: traceback.print_exc()
-                self.is_finished = True
+                if not self.playback_state == PlaybackState.TRANSITIONING:
+                    self.playback_state = PlaybackState.FINISHED
+                    self.finished()
+                self.playback_state = PlaybackState.FINISHED
+                if self.on_clean_up: self.on_clean_up(self)
                 return b''
             self.packet_index = 0
+
         packet = self.packets[self.packet_index-1]
-        
-        # normalize the audio
-        scale_factor = 6500 / (self.total_rms / packets_count)
-        packet = audioop.mul(packet, 2, scale_factor)
-        
-        # set overall volume
-        packet = audioop.mul(packet, 2, self.volume)
-        
+
+
+        # leave it to the user to motifiy the packet
+        # e.g. c\ustom effects   
+        try:
+            motified_packet = self.read_event(packet)
+            if motified_packet: packet = motified_packet
+        except Exception: traceback.print_exc()
+
         return packet
 
     def is_opus(self):
@@ -152,9 +178,6 @@ class YTDLPAudio(discord.AudioSource):
 
     def get_position(self) -> float:
         return self.packet_index * 0.02
-
-    def set_volume(self, volume: float) -> None:
-        self.volume = volume
 
     def set_loop(self, bool: bool) -> None:
         self.loop = bool
