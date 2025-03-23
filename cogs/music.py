@@ -2,9 +2,12 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 from discord import Embed
+from typing import Optional
 
 from namumusic.ytdlpmusicplayer import YTDLPMusicPlayer
+from namumusic.ytdlpaudio import PlaybackState
 from namumusic.ytdlpaudio import Metadata
+from namumusic.ytdlpaudio import YTDLPAudio
 from time import strftime
 from time import gmtime
 
@@ -29,11 +32,17 @@ class music(commands.Cog):
 
     group = app_commands.Group(name="music", description="music stuff")
     
-    async def on_track_end(self, player: YTDLPMusicPlayer):
-        audio = await player.play_next_song()
+    async def on_track_end(self, prev_audio: YTDLPAudio, player: YTDLPMusicPlayer):
+        audio = player.get_next_song()
         if audio:
             metadata: Metadata = audio.metadata
-            embed = Embed(title="🎵 playing now", description=f'`{metadata.title} - {metadata.author}` is playing now.')
+            match prev_audio.playback_state:
+                case PlaybackState.TRANSITIONING:
+                    audio = await player.play_next_song(force=False)
+                    embed = Embed(title="🎵 playing now", description=f'trasitioning to playing `{metadata.title} - {metadata.author}` now.')
+                case PlaybackState.FINISHED:
+                    audio = await player.play_next_song(force=True)
+                    embed = Embed(title="🎵 playing now", description=f'`{metadata.title} - {metadata.author}` is playing now.')
             await player.extras.get("channel").send(embed=embed)
 
     @group.command(name="play", description="song name or the link")
@@ -51,9 +60,16 @@ class music(commands.Cog):
         metadata: Metadata = audio.metadata
         embed = Embed(title="🎵 Song added to the queue.", description=f'`{metadata.title} - {metadata.author}` was added to the queue.')
         await interaction.followup.send(embed=embed)
-        if not vc.is_playing():
-            await player.play()
+        await player.play()
 
+    @group.command(name="volume", description="adjust the volume (default 100%)")
+    async def volume(self, interaction: discord.Interaction, volume: float):
+        vc = interaction.guild.voice_client
+        player = self.get_guild_player(vc)
+        player.set_volume(volume / 100.0)
+        embed = Embed(title="Volume", description=f"The volume has been adjusted to {volume}%.")
+        await interaction.response.send_message(embed=embed)
+        
     @group.command(name="stop", description="stop everything")
     async def stop(self, interaction: discord.Interaction):
         vc = interaction.guild.voice_client
@@ -75,6 +91,25 @@ class music(commands.Cog):
         vc = interaction.guild.voice_client
         vc.resume()
         embed = Embed(title="▶️ Music Resumed", description="The music has been resumed.")
+        await interaction.response.send_message(embed=embed)
+
+    @group.command(name="transition", description="adjust the transition of the song")
+    async def transition(self, interaction: discord.Interaction, duration: float, strength: Optional[float]):
+        vc = interaction.guild.voice_client
+        player = self.get_guild_player(vc)
+        player.crossfade_length = min(max(2.0, duration), 12.0)
+        if strength:
+            strength = min(max(0.1, strength), 9.0)
+            player.crossfade_strength = strength
+        embed = Embed(title="Transition Set", description=f"Duration: {duration}\nStrength: {strength}")
+        await interaction.response.send_message(embed=embed)
+
+    @group.command(name="seek", description="seeks the song position")
+    async def seek(self, interaction: discord.Interaction, seconds: float):
+        vc = interaction.guild.voice_client
+        player = self.get_guild_player(vc)
+        player.seek(seconds)
+        embed = Embed(title="Seek", description=f"Seeked to {player.current_song.get_position()}")
         await interaction.response.send_message(embed=embed)
 
     @group.command(name="skip", description="skip song")
@@ -133,10 +168,11 @@ class music(commands.Cog):
         median = ImageStat.Stat(artwork).median
         embed = Embed(color=discord.Color.from_rgb(median[0], median[1], median[2]), description=f'## [{metadata.title}]({metadata.url})\n-# by [{metadata.author}]({metadata.author_url})\n**{progressbar}**\n- {strftime("%H:%M:%S", gmtime(audio.get_position()))} - {strftime("%H:%M:%S", gmtime(metadata.length))}')
         embed.add_field(name="Requested by:", value=f'`{audio.extras.get("requester").name}`', inline=True)
-        next_song = await player.get_next_song()
+        next_song = player.get_next_song()
         if next_song:
             embed.add_field(name="Next up:", value=f"`{next_song.metadata.title} - {next_song.metadata.author}`" , inline=True)
         embed.set_thumbnail(url=metadata.thumbnail_url)
+        embed.set_image(url=metadata.thumbnail_url)
         await interaction.response.send_message(embed=embed)
 
 async def setup(bot):
