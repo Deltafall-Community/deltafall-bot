@@ -60,7 +60,8 @@ class music(commands.Cog):
         metadata: Metadata = audio.metadata
         embed = Embed(title="🎵 Song added to the queue.", description=f'`{metadata.title} - {metadata.author}` was added to the queue.')
         await interaction.followup.send(embed=embed)
-        await player.play()
+        if not vc.is_playing():
+            await player.play()
 
     @group.command(name="volume", description="adjust the volume (default 100%)")
     async def volume(self, interaction: discord.Interaction, volume: float):
