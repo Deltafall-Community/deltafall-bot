@@ -26,6 +26,7 @@ async def create_club_embed(club: ClubData):
     club_desc = lambda s: s or "*-# No description.*"
     embed = Embed(color=discord.Color.from_rgb(255, 255, 255), description=f'## {club.name}\n-# Led by {club.leader.mention}\n{club_desc(club.description)}\n')
     embed.add_field(name="Member count:", value=len(club.users), inline=True)
+    embed.add_field(name="Join:", value=club.leader.mention, inline=True)
     embed.set_thumbnail(url=club.icon_url)
     embed.set_image(url=club.banner_url)
     return embed
