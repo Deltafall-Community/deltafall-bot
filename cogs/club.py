@@ -61,10 +61,8 @@ async def get_user_club(interaction: discord.Interaction,connection, user: disco
 
 async def join_club(interaction: discord.Interaction, connection, user: discord.User, leader: discord.User):
     joined_club = await get_user_club(interaction, connection, user)
-    owned_club = await get_club(interaction, connection, user)
     
     if joined_club: return ClubError.ALREADY_JOINED
-    if owned_club: return ClubError.ALREADY_OWNED
 
     club = await get_club(interaction, connection, leader)
     table = interaction.guild.id
@@ -79,10 +77,8 @@ async def join_club(interaction: discord.Interaction, connection, user: discord.
         return club
     
 async def create_club(interaction: discord.Interaction, connection, leader: discord.User, name: str, desc: str = None, icon_url: str = None, banner_url: str = None):
-    joined_club = await get_user_club(interaction, connection, leader)
     owned_club = await get_club(interaction, connection, leader)
 
-    if joined_club: return ClubError.ALREADY_JOINED
     if owned_club: return ClubError.ALREADY_OWNED
     
     cur = connection.cursor()
@@ -208,7 +204,6 @@ class CreateClubModal(discord.ui.Modal, title='Create Club'):
 
     async def on_submit(self, interaction: discord.Interaction):
         club = await create_club(interaction, self.connection, interaction.user, self.name.value, self.description.value, self.icon_url.value, self.banner_url.value)
-        if club == ClubError.ALREADY_JOINED: return await interaction.response.send_message(content="You have already joined a club.")
         if club == ClubError.ALREADY_OWNED: return await interaction.response.send_message(content="You have already owned a club.")
         await interaction.response.send_message(embed=await create_club_embed(club))
 
@@ -225,6 +220,7 @@ class club(commands.Cog):
             cur = self.bot.club_db.cursor()
             cur.execute("""SELECT 1""")
         except Exception as ex:
+            print("Reconnecting to club_db...")
             self.bot.club_db = self.bot.connect_club_db()
             return await self.get_connection(self.bot.club_db)
         return self.bot.club_db
@@ -243,38 +239,42 @@ class club(commands.Cog):
 
     @group.command(name="disband", description="disband/deletes your club")
     async def disbandclub(self, interaction: discord.Interaction):
+        await interaction.response.defer()
         delete = await delete_club(interaction, await self.get_connection(), interaction.user)
-        if delete: return await interaction.response.send_message(f"Your club has been successfully disbanded, All of your club members are now kicked out.", ephemeral=False, allowed_mentions=discord.AllowedMentions.none())
-        return await interaction.response.send_message(f"You are not a leader of a club.", ephemeral=False, allowed_mentions=discord.AllowedMentions.none())
+        if delete: return await interaction.followup.send(f"Your club has been successfully disbanded, All of your club members are now kicked out.", ephemeral=False, allowed_mentions=discord.AllowedMentions.none())
+        return await interaction.followup.send(f"You are not a leader of a club.", ephemeral=False, allowed_mentions=discord.AllowedMentions.none())
 
     @group.command(name="join", description="joins a club")
     async def joinclub(self, interaction: discord.Interaction, leader: discord.User):
+        await interaction.response.defer()
         club = await join_club(interaction, await self.get_connection(), interaction.user, leader)
-        if club == ClubError.ALREADY_JOINED: return await interaction.response.send_message(content="You have already joined a club.")
-        elif club == ClubError.ALREADY_OWNED: return await interaction.response.send_message(content="You have already owned a club.")
-        elif club: return await interaction.response.send_message(f"Joined club lead by {leader.mention}", ephemeral=False, allowed_mentions=discord.AllowedMentions.none())
+        if club == ClubError.ALREADY_JOINED: return await interaction.followup.send(content="You have already joined a club.")
+        elif club: return await interaction.followup.send(f"Joined club lead by {leader.mention}", ephemeral=False, allowed_mentions=discord.AllowedMentions.none())
 
     @group.command(name="leave", description="leaves a club")
     async def leaveclub(self, interaction: discord.Interaction):
+        await interaction.response.defer()
         club = await leave_club(interaction, await self.get_connection(), interaction.user)
-        if club: return await interaction.response.send_message(f"You hae successfully left your club.", ephemeral=False, allowed_mentions=discord.AllowedMentions.none())
-        return await interaction.response.send_message(f"You didn't join any club.", ephemeral=False, allowed_mentions=discord.AllowedMentions.none())
+        if club: return await interaction.followup.send(f"You hae successfully left your club.", ephemeral=False, allowed_mentions=discord.AllowedMentions.none())
+        return await interaction.followup.send(f"You didn't join any club.", ephemeral=False, allowed_mentions=discord.AllowedMentions.none())
 
     @group.command(name="info", description="gets club info")
     async def info(self, interaction: discord.Interaction, leader: discord.User):
+        await interaction.response.defer()
         club = await get_club(interaction, await self.get_connection(), leader)
-        if club: return await interaction.response.send_message(embed=await create_club_embed(club), ephemeral=False)
-        return await interaction.response.send_message(f"No club was owned by {leader.mention}", ephemeral=False, allowed_mentions=discord.AllowedMentions.none())
+        if club: return await interaction.followup.send(embed=await create_club_embed(club), ephemeral=False)
+        return await interaction.followup.send(f"No club was owned by {leader.mention}", ephemeral=False, allowed_mentions=discord.AllowedMentions.none())
 
     @group.command(name="ping", description="ping club members")
     async def ping(self, interaction: discord.Interaction):
+        await interaction.response.defer()
         club = await get_club(interaction, await self.get_connection(), interaction.user)
         if club:
             ping_str = f"{club.name} Club Ping:\n"
             for user in club.users:
                 ping_str += user.mention
-            return await interaction.response.send_message(ping_str, ephemeral=False)
-        return await interaction.response.send_message(f"You are not a leader of a club.", ephemeral=False, allowed_mentions=discord.AllowedMentions.none())
+            return await interaction.followup.send(ping_str, ephemeral=False)
+        return await interaction.followup.send(f"You are not a leader of a club.", ephemeral=False, allowed_mentions=discord.AllowedMentions.none())
 
 async def setup(bot):
     await bot.add_cog(club(bot))
