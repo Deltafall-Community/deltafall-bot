@@ -91,11 +91,7 @@ class YTDLPMusicPlayer():
         else: self.current_song = audio_source
         if not self.current_song: return None
 
-        # if theres only a song in queue then add audio to mixer
-        # OR
-        # if another song in the queue is not playing and the current song is transitioning then add audio to mixer
-        if len(self.queue) == 1 or (len(self.queue) > 1 and self.queue[1].playback_state == PlaybackState.NOT_PLAYING and self.queue[0].playback_state == PlaybackState.TRANSITIONING):
-            self.mixer.add_audio_source("music", self.current_song)
+        self.mixer.add_audio_source("music", self.current_song)
         
         if not self.vc.is_playing(): self.vc.play(self.mixer, fec=False, signal_type="music", bitrate=512)
         if self.on_start: await self.on_start(self)
@@ -104,6 +100,8 @@ class YTDLPMusicPlayer():
     async def add_song(self, url: str) -> YTDLPAudio:
         audio = await YTDLPAudio(url, on_finished=self.finished, on_loading_finished=self.loaded, on_read=self.on_audio_read, on_clean_up=self.clean_up)
         self.queue.append(audio)
+        if (len(self.queue) > 1 and self.queue[1].playback_state == PlaybackState.NOT_PLAYING and self.queue[0].playback_state == PlaybackState.TRANSITIONING):
+            self.current_song.finished(wait=False)
         return audio
 
     async def play_next_song(self, force=True) -> YTDLPAudio:
