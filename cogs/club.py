@@ -223,7 +223,7 @@ class club(commands.Cog):
         except Exception as ex:
             print("Reconnecting to club_db...")
             self.bot.club_db = self.bot.connect_club_db()
-            return await self.get_connection(self.bot.club_db)
+            return await self.get_connection()
         return self.bot.club_db
 
     group = app_commands.Group(name="club", description="club stuff")
