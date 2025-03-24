@@ -2,11 +2,69 @@
 [![deltafall](https://img.shields.io/badge/deltafall-white?logo=discord&style=flat-square)](https://discord.gg/hT3HtPSwth)
 ![GitHub top language](https://img.shields.io/github/languages/top/45-razrblds/YAMB-fixed?style=flat-square&labelColor=white&color=white)
 
+# deltafall-bot
+> also known as Deltaballin
+> 
+A general purpose *silly* bot used by the Deltafall discord server.
 
+## How do I run this bot?
+### Requirements
+- Python 3.13+
+- FFmpeg
+- Discord Bot Token
+#### How do I obtain the discord bot token?
+- if you don't have a discord bot account, you can follow this [documentation](https://discordpy.readthedocs.io/en/stable/discord.html).
+- you can also use the existing token from your existing discord bot if you already got one.
+### Setup
+#### clone the github repository
+```shell
+git clone https://github.com/Deltafall-Community/deltafall-bot/
+```
+#### installing all the required dependencies
+```shell
+cd deltafall-bot
+python -m venv env
+source env/bin/activate
+pip install -r requirement.txt
+```
+#### configuring the config file
+> [!IMPORTANT]
+> to run the bot you MUST do this step or it will not work.
+>
+starting by copying the `config.json.example` and renaming it to `config.json`
 
+<sub>if you have a gui file manager this step can also be done by using the file manager</sub>
+```shell
+cp config.json.example config.json
+```
+edit the `config.json` file
 
-A bot used by the Deltafall discord server.
+<sup>you can use whatever text editor you like in this case we will be using `nano`</sup>
+```shell
+nano config.json
+```
+```json
+{
+    "token": "",
+    "sqlitecloud-quote": "",
+    "sqlitecloud-club": ""
+}
+```
+for the minimum requirement for the bot to run, you need to put your bot token in the `"token": "<INSERT TOKEN HERE>"`
+it will look something like:
+```json
+{
+    "token": "MTIDJ8jn239jA299jda9DKaasdv.DJKLa48jDDJ3LJE2",
+    "sqlitecloud-quote": "",
+    "sqlitecloud-club": ""
+}
+```
+#### running the bot
+```shell
+python main.py
+```
 
+## Features
 
 | Command        | Description                                                                                         | Usage                                                                                                                     |
 |----------------|-----------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------|
