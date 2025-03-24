@@ -38,10 +38,12 @@ class Bot(commands.Bot):
         self.valentine_lvl_db = plyvel.DB('valentine', create_if_missing=True)
 
     def connect_quote_db(self):
-        return sqlitecloud.connect(self.config["sqlitecloud-quote"])
+        if self.config.get("sqlitecloud-quote"): return sqlitecloud.connect(self.config["sqlitecloud-quote"])
+        else: return sqlite3.connect("quotes.db")
 
     def connect_club_db(self):
-        return sqlitecloud.connect(self.config["sqlitecloud-club"])
+        if self.config.get("sqlitecloud-club"): return sqlitecloud.connect(self.config["sqlitecloud-club"])
+        else: return sqlite3.connect("clubs.db")
 
     async def load_extensions(self):
         for file in os.listdir(self.cogsfolder):
