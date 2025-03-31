@@ -1,12 +1,14 @@
-import discord
-from discord.ext import commands
-from discord import app_commands
 from typing import Optional
 from enum import Enum
 from dataclasses import field
 from dataclasses import dataclass
 from typing import List
 import traceback
+import asyncio
+
+import discord
+from discord.ext import commands
+from discord import app_commands
 from discord import Embed
 
 class ClubError(Enum):
@@ -31,35 +33,52 @@ async def create_club_embed(club: ClubData):
     embed.set_image(url=club.banner_url)
     return embed
 
-async def get_club(interaction: discord.Interaction, connection, leader: discord.User):
+def db_get_club(connection, table, leader: discord.User):
     cur = connection.cursor()
-    table = interaction.guild.id
     cur.execute(f"CREATE TABLE IF NOT EXISTS '{table}clubs'(name, leader, description, icon_url, banner_url)")
-    club = cur.execute(f"""
+    return cur.execute(f"""
         SELECT *, leader FROM '{table}clubs' WHERE leader = ?
     """, (leader.id,)).fetchone()
+async def get_club(interaction: discord.Interaction, connection, leader: discord.User):
+    table = interaction.guild.id
+    event_loop = asyncio.get_event_loop()
+    club = await event_loop.run_in_executor(None, db_get_club, connection, table, leader)    
     if club: return ClubData(club[0], interaction.guild.get_member(club[1]), club[2], club[3], club[4], await get_club_users(interaction, connection, leader))
 
-async def get_club_users(interaction: discord.Interaction, connection, leader: discord.User):
+def db_get_club_users(connection, table, leader: discord.User):
     cur = connection.cursor()
-    table = interaction.guild.id
     cur.execute(f"CREATE TABLE IF NOT EXISTS '{table}users'(user, leader)")
-    discord_users = []
-    users = cur.execute(f"""
+    return cur.execute(f"""
         SELECT *, leader FROM '{table}users' WHERE leader = ?
     """, (leader.id,)).fetchall()
+async def get_club_users(interaction: discord.Interaction, connection, leader: discord.User):
+    table = interaction.guild.id
+    discord_users = []
+    event_loop = asyncio.get_event_loop()
+    users = await event_loop.run_in_executor(None, db_get_club_users, connection, table, leader)    
     for user in users: discord_users.append(interaction.guild.get_member(user[0]))
     return discord_users
 
-async def get_user_club(interaction: discord.Interaction,connection, user: discord.User):
+def db_get_user_club(connection, table, user: discord.User):
     cur = connection.cursor()
-    table = interaction.guild.id
     cur.execute(f"CREATE TABLE IF NOT EXISTS '{table}users'(user, leader)")
-    club = cur.execute(f"""
+    return cur.execute(f"""
         SELECT *, user FROM '{table}users' WHERE user = ?
     """, (user.id,)).fetchone()
+async def get_user_club(interaction: discord.Interaction,connection, user: discord.User):
+    table = interaction.guild.id
+    event_loop = asyncio.get_event_loop()
+    club = await event_loop.run_in_executor(None, db_get_club_users, connection, table, user)
     if club: return await get_club(interaction, connection, interaction.guild.get_member(club[1]))
 
+def db_join_club(connection, table, user: discord.User, leader: discord.User):
+    cur = connection.cursor()
+    cur.execute(f"CREATE TABLE IF NOT EXISTS '{table}users'(user, leader)")
+    cur.execute(f"""
+        INSERT INTO '{table}users' VALUES
+            (?, ?)
+        """, (user.id, leader.id))
+    connection.commit()
 async def join_club(interaction: discord.Interaction, connection, user: discord.User, leader: discord.User):
     joined_club = await get_user_club(interaction, connection, user)
     
@@ -68,55 +87,52 @@ async def join_club(interaction: discord.Interaction, connection, user: discord.
     club = await get_club(interaction, connection, leader)
     table = interaction.guild.id
     if club:
-        cur = connection.cursor()
-        cur.execute(f"CREATE TABLE IF NOT EXISTS '{table}users'(user, leader)")
-        cur.execute(f"""
-            INSERT INTO '{table}users' VALUES
-                (?, ?)
-            """, (user.id, leader.id))
-        connection.commit()
+        event_loop = asyncio.get_event_loop()
+        club = await event_loop.run_in_executor(None, db_join_club, connection, table, user, leader)
         return club
-    
+
+def db_create_club(connection, table, club):
+    cur = connection.cursor()
+    cur.execute(f"CREATE TABLE IF NOT EXISTS '{table}clubs'(name, leader, description, icon_url, banner_url)")
+    cur.execute(f"""
+        INSERT INTO '{table}clubs' VALUES
+            (?, ?, ?, ?, ?)
+        """, (club.name, club.leader.id, club.description, club.icon_url, club.banner_url))
+    connection.commit()
 async def create_club(interaction: discord.Interaction, connection, leader: discord.User, name: str, desc: str = None, icon_url: str = None, banner_url: str = None):
     owned_club = await get_club(interaction, connection, leader)
-
     if owned_club: return ClubError.ALREADY_OWNED
     
-    cur = connection.cursor()
     table = interaction.guild.id
-    cur.execute(f"CREATE TABLE IF NOT EXISTS '{table}clubs'(name, leader, description, icon_url, banner_url)")
+    event_loop = asyncio.get_event_loop()
     club = ClubData(name, leader)
     if desc: club.description = desc
     if icon_url: club.icon_url = icon_url
     if banner_url: club.banner_url = banner_url
-    cur.execute(f"""
-        INSERT INTO '{table}clubs' VALUES
-            (?, ?, ?, ?, ?)
-        """, (club.name, leader.id, club.description, club.icon_url, club.banner_url))
-    connection.commit()
+    await event_loop.run_in_executor(None, db_create_club, connection, table, club)
 
     return club
-    
+
+def db_edit_club(connection, table, club):
+    cur = connection.cursor()
+    cur.execute(f"""
+        UPDATE '{table}clubs' SET description = ?, icon_url = ?, banner_url = ? WHERE leader = ?
+    """, (club.description, club.icon_url, club.banner_url, club.leader.id,))
+    connection.commit()
 async def edit_club(interaction: discord.Interaction, connection, leader: discord.User, desc: str = None, icon_url: str = None, banner_url: str = None):
     club = await get_club(interaction, connection, leader)
     if club:
-        cur = connection.cursor()
         table = interaction.guild.id
         if desc: club.description = desc
         if icon_url: club.icon_url = icon_url
         if banner_url: club.banner_url = banner_url
-        cur.execute(f"""
-            UPDATE '{table}clubs' SET description = ?, icon_url = ?, banner_url = ? WHERE leader = ?
-        """, (club.description, club.icon_url, club.banner_url, club.leader.id,))
-        connection.commit()
+        event_loop = asyncio.get_event_loop()
+        await event_loop.run_in_executor(None, db_edit_club, connection, table, club)        
+
     return club
 
-async def delete_club(interaction: discord.Interaction, connection, leader: discord.User):
-    owned_club = await get_club(interaction, connection, leader)
-    if not owned_club: return None
-
+def db_delete_club(connection, table, leader: discord.User):
     cur = connection.cursor()
-    table = interaction.guild.id
     cur.execute(f"""
         DELETE FROM '{table}clubs'
         WHERE leader = ?""", (leader.id,))
@@ -124,19 +140,29 @@ async def delete_club(interaction: discord.Interaction, connection, leader: disc
         DELETE FROM '{table}users'
         WHERE leader = ?""", (leader.id,))
     connection.commit()
+async def delete_club(interaction: discord.Interaction, connection, leader: discord.User):
+    owned_club = await get_club(interaction, connection, leader)
+    if not owned_club: return None
+
+    table = interaction.guild.id
+    event_loop = asyncio.get_event_loop()
+    await event_loop.run_in_executor(None, db_delete_club, connection, table, leader)        
 
     return True
 
-async def leave_club(interaction: discord.Interaction, connection, user: discord.User):
-    joined_club = await get_user_club(interaction, connection, user)
-    if not joined_club: return None
-
+def db_leave_club(connection, table, user: discord.User):
     cur = connection.cursor()
-    table = interaction.guild.id
     cur.execute(f"""
         DELETE FROM '{table}users'
         WHERE user = ?""", (user.id,))
     connection.commit()
+async def leave_club(interaction: discord.Interaction, connection, user: discord.User):
+    joined_club = await get_user_club(interaction, connection, user)
+    if not joined_club: return None
+
+    table = interaction.guild.id
+    event_loop = asyncio.get_event_loop()
+    await event_loop.run_in_executor(None, db_leave_club, connection, table, user)
 
     return True
 
@@ -216,15 +242,19 @@ class club(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    async def get_connection(self):
+    def check_connection(self):
         try:
             cur = self.bot.club_db.cursor()
             cur.execute("""SELECT 1""")
         except Exception as ex:
             print("Reconnecting to club_db...")
             self.bot.club_db = self.bot.connect_club_db()
-            return await self.get_connection()
+            return self.check_connection()
         return self.bot.club_db
+                
+    async def get_connection(self):
+        self.event_loop = asyncio.get_event_loop()
+        return await self.event_loop.run_in_executor(None, self.check_connection)
 
     group = app_commands.Group(name="club", description="club stuff")
 
@@ -251,6 +281,7 @@ class club(commands.Cog):
         club = await join_club(interaction, await self.get_connection(), interaction.user, leader)
         if club == ClubError.ALREADY_JOINED: return await interaction.followup.send(content="You have already joined a club.")
         elif club: return await interaction.followup.send(f"Joined club lead by {leader.mention}", ephemeral=False, allowed_mentions=discord.AllowedMentions.none())
+        return await interaction.followup.send(f"No club was owned by {leader.mention}", ephemeral=False, allowed_mentions=discord.AllowedMentions.none())
 
     @group.command(name="leave", description="leaves a club")
     async def leaveclub(self, interaction: discord.Interaction):

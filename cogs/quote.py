@@ -1,83 +1,98 @@
+from dataclasses import dataclass
+from typing import Optional
+
+import asyncio
 import discord
 from discord.ext import commands
 from discord import app_commands
-from typing import Optional
 import re
+
+@dataclass
+class Quote:
+    author: str
+    content: str
+    id: int
+
+def db_get_quote_id(connection, table, id):
+    cur = connection.cursor()
+    quote = cur.execute(f"""
+        SELECT *, ROWID FROM '{table}' WHERE ROWID = {id}
+    """)
+    return quote.fetchone()
+async def get_quote_id(connection, table, id):
+    event_loop = asyncio.get_event_loop()
+    quote = await event_loop.run_in_executor(None, db_get_quote_id, connection, table, id)
+    if quote: return Quote(quote[0], quote[1], quote[-1])
+
+def db_get_random_quote(connection, table):
+    cur = connection.cursor()
+    quote = cur.execute(f"""
+        SELECT *, ROWID FROM '{table}' ORDER BY RANDOM() LIMIT 1
+    """)
+    return quote.fetchone()
+async def get_random_quote(connection, table):    
+    event_loop = asyncio.get_event_loop()
+    quote = await event_loop.run_in_executor(None, db_get_random_quote, connection, table)
+    if quote: return Quote(quote[0], quote[1], quote[-1])
+
+def db_add_quote(connection, table, author, quote):
+    cur = connection.cursor()
+    cur.execute(f"CREATE TABLE IF NOT EXISTS '{table}'(author, quote)")
+    cur.execute(f"""
+        INSERT INTO '{table}' VALUES
+            (?, ?)
+        """, (author, quote))
+    connection.commit()
+    return cur.lastrowid
+async def add_quote(connection, table, author, quote):
+    event_loop = asyncio.get_event_loop()
+    return await event_loop.run_in_executor(None, db_add_quote, connection, table, author, quote)
+
+def db_delete_quote(connection, table, id):
+    cur = connection.cursor()
+    cur.execute(f"""
+        DELETE FROM '{table}'
+        WHERE ROWID = ?
+        """, (id,))
+    connection.commit()
+async def delete_quote(connection, table, id):
+    event_loop = asyncio.get_event_loop()
+    return await event_loop.run_in_executor(None, db_delete_quote, connection, table, id)
 
 class randomquote(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    async def get_quote_id(self, table, id):
-        connection = self.bot.quote_db
-        cur = connection.cursor()
+    def check_connection(self):
         try:
-            quote = cur.execute(f"""
-                SELECT *, ROWID FROM '{table}' WHERE ROWID = {id}
-            """) 
-        except:
-            self.bot.quote_db = self.bot.connect_quote_db()
-            return await self.get_quote_id(table, id)
-        return quote.fetchone()
-
-    async def get_random_quote_db(self, table):
-        connection = self.bot.quote_db
-        cur = connection.cursor()
-        try:
-            quote = cur.execute(f"""
-                SELECT *, ROWID FROM '{table}' ORDER BY RANDOM() LIMIT 1
-            """)
-        except:
-            self.bot.quote_db = self.bot.connect_quote_db()
-            return await self.get_random_quote_db(table)
-        return quote.fetchone()
-
-    async def add_quote_db(self, table, author, quote):
-        connection = self.bot.quote_db
-        cur = connection.cursor()
-        try:
-            cur.execute(f"CREATE TABLE IF NOT EXISTS '{table}'(author, quote)")
-            cur.execute(f"""
-                INSERT INTO '{table}' VALUES
-                    (?, ?)
-                """, (author, quote))
-        except:
-            self.bot.quote_db = self.bot.connect_quote_db()
-            return await self.add_quote_db(table, author, quote)
-        connection.commit()
-        return cur.lastrowid
-
-    async def delete_quote_db(self, table, id):
-        connection = self.bot.quote_db
-        cur = connection.cursor()
-        try:
-            cur.execute(f"""
-                DELETE FROM '{table}'
-                WHERE ROWID = ?
-                """, (id,))
-        except:
-            self.bot.quote_db = self.bot.connect_quote_db()
-            return await self.delete_quote_db(table, id)
-        connection.commit()
+            cur = self.bot.quote_db.cursor()
+            cur.execute("""SELECT 1""")
+        except Exception as ex:
+            print("Reconnecting to quote_db...")
+            self.bot.quote_db = self.bot.connect_club_db()
+            return self.check_connection()
+        return self.bot.quote_db
+                
+    async def get_connection(self):
+        self.event_loop = asyncio.get_event_loop()
+        return await self.event_loop.run_in_executor(None, self.check_connection)
 
     @app_commands.command(name="random_quote", description="get random quote")
     async def quote(self,
     interaction: discord.Interaction,
     id: Optional[int]):
-        if id:
-            data = await self.get_quote_id(table=interaction.guild.id, id=id)
-        else:
-            data = await self.get_random_quote_db(table=interaction.guild.id)
-        author = data[0]
-        quote = data[1]
-        await interaction.response.send_message(f'{quote}\n### `- {author} | id: {data[-1]}`', allowed_mentions=discord.AllowedMentions.none())
+        connection = await self.get_connection()
+        if id: quote = await get_quote_id(connection, table=interaction.guild.id, id=id)
+        else: quote = await get_random_quote(connection, table=interaction.guild.id)
+
+        await interaction.response.send_message(f'{quote.content}\n### `- {quote.author} | id: {quote.id}`', allowed_mentions=discord.AllowedMentions.none())
 
     @app_commands.command(name="addquote", description="add a quote")
     async def addquote(self, interaction: discord.Interaction, quote: str, by: str):
         if not interaction.user.guild_permissions.manage_messages:
             await interaction.response.send_message("u dont have manage message permission",ephemeral=True)
         else:
-            await self.add_quote_db(table=interaction.guild.id, author=by, quote=quote)
+            await add_quote(await self.get_connection(), table=interaction.guild.id, author=by, quote=quote)
             await interaction.response.send_message(f"added {quote} by {by}")
 
     @commands.Cog.listener()
@@ -85,11 +100,9 @@ class randomquote(commands.Cog):
         if message.content.lower() == "aq" or message.content == "<@949479338275913799>":
             messager = await message.channel.fetch_message(message.reference.message_id)
             for role in message.author.roles:
-                if role.id == 1330210181187113051:
-                    return await message.reply("erm you mighht been banned fom quoting idk")
+                if role.id == 1330210181187113051: return await message.reply("erm you mighht been banned fom quoting idk")
             if messager.author == self.bot.user:
-                if messager.content != "generated by deltafall-bot":
-                    return
+                if messager.content != "generated by deltafall-bot": return
             if messager.content == "" and not messager.attachments: return await message.channel.send("its just an empty text you idiot", reference=message)
             content = messager.content
             display_content = content
@@ -97,17 +110,16 @@ class randomquote(commands.Cog):
             if messager.attachments:
                 content = (f"{messager.content} | {messager.attachments[0].url}")
                 display_content = (f"{display_content} | {messager.attachments[0].url}")
-            quote_id = await self.add_quote_db(table=message.guild.id, author=messager.author.name, quote=content)
+            quote_id = await add_quote(await self.get_connection(), table=message.guild.id, author=messager.author.name, quote=content)
             embed=discord.Embed(title="Quote Added", description=f'{display_content}\n\nby {messager.author.name}', color=0x57e389)
             await message.channel.send(content=f"`id: {quote_id}`", embed=embed, reference=message)
 
         if message.content.lower() == "dq":
             messager = await message.channel.fetch_message(message.reference.message_id)
-            if messager.author != self.bot.user:
-                return
+            if messager.author != self.bot.user: return
             content = messager.content
             id = re.findall("id:\s*(\d+)", content)[0]
-            await self.delete_quote_db(table=message.guild.id, id=(id))
+            await delete_quote(await self.get_connection(), table=message.guild.id, id=id)
             embed=discord.Embed(title="Quote Deleted", description=f'Deleted quote id `{id}`', color=0x57e389)
             await message.channel.send(embed=embed, reference=message)
 

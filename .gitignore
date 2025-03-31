@@ -2,3 +2,5 @@ env/
 config.json
 valentine/
 __pycache__/
+.vscode
+*.db

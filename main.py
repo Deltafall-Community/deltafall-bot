@@ -39,11 +39,11 @@ class Bot(commands.Bot):
 
     def connect_quote_db(self):
         if self.config.get("sqlitecloud-quote"): return sqlitecloud.connect(self.config["sqlitecloud-quote"])
-        else: return sqlite3.connect("quotes.db")
+        else: return sqlite3.connect("quotes.db", check_same_thread=False)
 
     def connect_club_db(self):
         if self.config.get("sqlitecloud-club"): return sqlitecloud.connect(self.config["sqlitecloud-club"])
-        else: return sqlite3.connect("clubs.db")
+        else: return sqlite3.connect("clubs.db", check_same_thread=False)
 
     async def load_extensions(self):
         for file in os.listdir(self.cogsfolder):
