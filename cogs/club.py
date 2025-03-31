@@ -88,8 +88,7 @@ async def join_club(interaction: discord.Interaction, connection, user: discord.
     table = interaction.guild.id
     if club:
         event_loop = asyncio.get_event_loop()
-        club = await event_loop.run_in_executor(None, db_join_club, connection, table, user, leader)
-        return club
+        return await event_loop.run_in_executor(None, db_join_club, connection, table, user, leader)
 
 def db_create_club(connection, table, club):
     cur = connection.cursor()
@@ -303,9 +302,9 @@ class club(commands.Cog):
         club = await get_club(interaction, await self.get_connection(), interaction.user)
         if club:
             ping_str = f"{club.name} Club Ping:\n"
-            for user in club.users:
-                ping_str += user.mention
-            return await interaction.followup.send(ping_str, ephemeral=False)
+            for user in club.users: ping_str += user.mention
+            await interaction.channel.send(ping_str)
+            return await interaction.followup.send("Sent", ephemeral=False)
         return await interaction.followup.send(f"You are not a leader of a club.", ephemeral=False, allowed_mentions=discord.AllowedMentions.none())
 
 async def setup(bot):

@@ -69,7 +69,7 @@ class randomquote(commands.Cog):
             cur.execute("""SELECT 1""")
         except Exception as ex:
             print("Reconnecting to quote_db...")
-            self.bot.quote_db = self.bot.connect_club_db()
+            self.bot.quote_db = self.bot.connect_quote_db()
             return self.check_connection()
         return self.bot.quote_db
                 
