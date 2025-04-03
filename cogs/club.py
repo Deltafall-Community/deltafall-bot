@@ -240,6 +240,11 @@ class CreateClubModal(discord.ui.Modal, title='Create Club'):
 class club(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        self.club_ping_ctx_menu = app_commands.ContextMenu(
+            name='Club Ping',
+            callback=self.club_ping,
+        )
+        self.bot.tree.add_command(self.club_ping_ctx_menu)
 
     def check_connection(self):
         try:
@@ -286,7 +291,7 @@ class club(commands.Cog):
     async def leaveclub(self, interaction: discord.Interaction):
         await interaction.response.defer()
         club = await leave_club(interaction, await self.get_connection(), interaction.user)
-        if club: return await interaction.followup.send(f"You hae successfully left your club.", ephemeral=False, allowed_mentions=discord.AllowedMentions.none())
+        if club: return await interaction.followup.send(f"You have successfully left your club.", ephemeral=False, allowed_mentions=discord.AllowedMentions.none())
         return await interaction.followup.send(f"You didn't join any club.", ephemeral=False, allowed_mentions=discord.AllowedMentions.none())
 
     @group.command(name="info", description="gets club info")
@@ -298,14 +303,18 @@ class club(commands.Cog):
 
     @group.command(name="ping", description="ping club members")
     async def ping(self, interaction: discord.Interaction):
-        await interaction.response.defer()
+        return await self.club_ping(interaction, message=None)
+
+    async def club_ping(self, interaction: discord.Interaction, message: discord.Message):
+        await interaction.response.defer(ephemeral=True)
         club = await get_club(interaction, await self.get_connection(), interaction.user)
         if club:
             ping_str = f"{club.name} Club Ping:\n"
             for user in club.users: ping_str += user.mention
-            await interaction.channel.send(ping_str)
-            return await interaction.followup.send("Sent", ephemeral=False)
-        return await interaction.followup.send(f"You are not a leader of a club.", ephemeral=False, allowed_mentions=discord.AllowedMentions.none())
+            if not message: await interaction.channel.send(ping_str)
+            else: await message.reply(ping_str)
+            return await interaction.followup.send("Sent Club Ping.", ephemeral=False)
+        return await interaction.followup.send(f"You are not a leader of a club.", ephemeral=True, allowed_mentions=discord.AllowedMentions.none())
 
 async def setup(bot):
     await bot.add_cog(club(bot))
