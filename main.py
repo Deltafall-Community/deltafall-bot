@@ -5,7 +5,6 @@ import logging
 import asyncio
 import yaml
 import sqlite3
-import psutil
 import sys
 import json
 

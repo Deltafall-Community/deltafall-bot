@@ -27,7 +27,7 @@ async def get_quote_id(connection, table, id):
 def db_get_random_quote(connection, table):
     cur = connection.cursor()
     quote = cur.execute(f"""
-        SELECT *, ROWID FROM '{table}' ORDER BY RANDOM() LIMIT 1
+        SELECT *, ROWID FROM '{table}' WHERE quote IS NOT NULL ORDER BY RANDOM() LIMIT 1
     """)
     return quote.fetchone()
 async def get_random_quote(connection, table):    
@@ -68,7 +68,7 @@ class randomquote(commands.Cog):
             cur = self.bot.quote_db.cursor()
             cur.execute("""SELECT 1""")
         except Exception as ex:
-            print("Reconnecting to quote_db...")
+            print(f"Reconnecting to Quote Database... (Reason: {repr(ex)})")
             self.bot.quote_db = self.bot.connect_quote_db()
             return self.check_connection()
         return self.bot.quote_db
@@ -87,13 +87,13 @@ class randomquote(commands.Cog):
 
         await interaction.response.send_message(f'{quote.content}\n### `- {quote.author} | id: {quote.id}`', allowed_mentions=discord.AllowedMentions.none())
 
-    @app_commands.command(name="addquote", description="add a quote")
+    @app_commands.command(name="add_quote", description="add a quote")
     async def addquote(self, interaction: discord.Interaction, quote: str, by: str):
         if not interaction.user.guild_permissions.manage_messages:
-            await interaction.response.send_message("u dont have manage message permission",ephemeral=True)
+            await interaction.response.send_message("You dont have the permission to use this command.",ephemeral=True)
         else:
             await add_quote(await self.get_connection(), table=interaction.guild.id, author=by, quote=quote)
-            await interaction.response.send_message(f"added {quote} by {by}")
+            await interaction.response.send_message(f"Added {quote} by {by}")
 
     @commands.Cog.listener()
     async def on_message(self, message):
@@ -111,8 +111,9 @@ class randomquote(commands.Cog):
                 content = (f"{messager.content} | {messager.attachments[0].url}")
                 display_content = (f"{display_content} | {messager.attachments[0].url}")
             quote_id = await add_quote(await self.get_connection(), table=message.guild.id, author=messager.author.name, quote=content)
-            embed=discord.Embed(title="Quote Added", description=f'{display_content}\n\nby {messager.author.name}', color=0x57e389)
-            await message.channel.send(content=f"`id: {quote_id}`", embed=embed, reference=message)
+            embed=discord.Embed(description=f'## Quote Added\n{display_content}', color=0x57e389)
+            embed.add_field(name="", value=f"-# \- {messager.author.name}", inline=True)
+            await message.channel.send(content=f"-# `id: {quote_id}`", embed=embed, reference=message)
 
         if message.content.lower() == "dq":
             messager = await message.channel.fetch_message(message.reference.message_id)
@@ -120,7 +121,7 @@ class randomquote(commands.Cog):
             content = messager.content
             id = re.findall("id:\s*(\d+)", content)[0]
             await delete_quote(await self.get_connection(), table=message.guild.id, id=id)
-            embed=discord.Embed(title="Quote Deleted", description=f'Deleted quote id `{id}`', color=0x57e389)
+            embed=discord.Embed(description=f'## Quote Deleted\nQuote `id: {id}` has been deleted.', color=0xff4545)
             await message.channel.send(embed=embed, reference=message)
 
 async def setup(bot):
