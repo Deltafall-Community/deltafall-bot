@@ -85,7 +85,7 @@ class randomquote(commands.Cog):
         if id: quote = await get_quote_id(connection, table=interaction.guild.id, id=id)
         else: quote = await get_random_quote(connection, table=interaction.guild.id)
 
-        await interaction.response.send_message(f'{quote.content}\n### `- {quote.author} | id: {quote.id}`', allowed_mentions=discord.AllowedMentions.none())
+        await interaction.response.send_message(f'{quote.content}\n### `- {quote.author} | ID: {quote.id}`', allowed_mentions=discord.AllowedMentions.none())
 
     @app_commands.command(name="add_quote", description="add a quote")
     async def addquote(self, interaction: discord.Interaction, quote: str, by: str):
@@ -113,15 +113,15 @@ class randomquote(commands.Cog):
             quote_id = await add_quote(await self.get_connection(), table=message.guild.id, author=messager.author.name, quote=content)
             embed=discord.Embed(description=f'## Quote Added\n{display_content}', color=0x57e389)
             embed.add_field(name="", value=f"-# \- {messager.author.name}", inline=True)
-            await message.channel.send(content=f"-# `id: {quote_id}`", embed=embed, reference=message)
+            await message.channel.send(content=f"`ID: {quote_id}`", embed=embed, reference=message)
 
         if message.content.lower() == "dq":
             messager = await message.channel.fetch_message(message.reference.message_id)
             if messager.author != self.bot.user: return
             content = messager.content
-            id = re.findall("id:\s*(\d+)", content)[0]
+            id = re.findall("ID:\s*(\d+)", content)[0]
             await delete_quote(await self.get_connection(), table=message.guild.id, id=id)
-            embed=discord.Embed(description=f'## Quote Deleted\nQuote `id: {id}` has been deleted.', color=0xff4545)
+            embed=discord.Embed(description=f'## Quote Deleted\nQuote `ID: {id}` has been deleted.', color=0xff4545)
             await message.channel.send(embed=embed, reference=message)
 
 async def setup(bot):
