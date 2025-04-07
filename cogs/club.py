@@ -88,7 +88,8 @@ async def join_club(interaction: discord.Interaction, connection, user: discord.
     table = interaction.guild.id
     if club:
         event_loop = asyncio.get_event_loop()
-        return await event_loop.run_in_executor(None, db_join_club, connection, table, user, leader)
+        await event_loop.run_in_executor(None, db_join_club, connection, table, user, leader)
+        return club
 
 def db_create_club(connection, table, club):
     cur = connection.cursor()
