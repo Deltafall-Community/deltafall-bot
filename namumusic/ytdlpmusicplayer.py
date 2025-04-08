@@ -118,10 +118,14 @@ class YTDLPMusicPlayer():
 
     async def add_song(self, url: str|dict, streamable: bool = True) -> YTDLPAudio:
         loop = asyncio.get_running_loop()
-        entries = await loop.run_in_executor(None, self.get_source_url, url)
         audios = []
-        for entry in entries:
-            audio = await YTDLPAudio(entry, streamable=streamable, cache_on_init=len(self.queue)+len(audios)<=1, on_finished=self.finished, on_loading_finished=self.loaded, on_read=self.on_audio_read, on_clean_up=self.clean_up)
+        if streamable:
+            entries = await loop.run_in_executor(None, self.get_source_url, url)
+            for entry in entries:
+                audio = await YTDLPAudio(entry, streamable=streamable, cache_on_init=len(self.queue)+len(audios)<=1, on_finished=self.finished, on_loading_finished=self.loaded, on_read=self.on_audio_read, on_clean_up=self.clean_up)
+                audios.append(audio)
+        else:
+            audio = await YTDLPAudio(url, streamable=streamable, cache_on_init=len(self.queue)+len(audios)<=1, on_finished=self.finished, on_loading_finished=self.loaded, on_read=self.on_audio_read, on_clean_up=self.clean_up)
             audios.append(audio)
         self.queue += audios
         if (len(self.queue) > 1 and self.queue[1].playback_state == PlaybackState.NOT_PLAYING and self.queue[0].playback_state == PlaybackState.TRANSITIONING):
