@@ -8,9 +8,12 @@ import math
 
 import audioop
 import time
+import yt_dlp
+from urllib.parse import urlparse 
 from namumusic.mixer import Mixer
 from namumusic.ytdlpaudio import PlaybackState
 from namumusic.ytdlpaudio import YTDLPAudio
+from namumusic.ytdlpaudio import Status
 import discord
 
 class YTDLPMusicPlayer():
@@ -27,7 +30,7 @@ class YTDLPMusicPlayer():
         self.on_finished = on_finished
 
         self.crossfade = True
-        self.crossfade_length = 6.0
+        self.crossfade_length = 2.0
         self.crossfade_strength = 3.0
 
         self.mixer = Mixer()
@@ -91,22 +94,43 @@ class YTDLPMusicPlayer():
         else: self.current_song = audio_source
         if not self.current_song: return None
 
+        loop = asyncio.get_running_loop()
+        for audio in self.queue[1:][:3]:
+            if audio.status == Status.IDLE: loop.create_task(audio.start_caching())
+        if self.current_song == Status.IDLE: await self.current_song.start_caching()
+
         self.mixer.add_audio_source("music", self.current_song)
         
         if not self.vc.is_playing(): self.vc.play(self.mixer, fec=False, signal_type="music", bitrate=512)
         if self.on_start: await self.on_start(self)
         return self.current_song
 
-    async def add_song(self, url: str) -> YTDLPAudio:
-        audio = await YTDLPAudio(url, on_finished=self.finished, on_loading_finished=self.loaded, on_read=self.on_audio_read, on_clean_up=self.clean_up)
-        self.queue.append(audio)
+    def get_source_url(self, search: str) -> str:
+        ydl_opts = {'format': 'bestaudio/best', 'quiet': True} 
+        ydl = yt_dlp.YoutubeDL(ydl_opts)
+        
+        if urlparse(search).netloc != '': info = ydl.extract_info(search, download=False)
+        else: info = ydl.extract_info(f"ytsearch1:{search}", download=False).get("entries")[0]
+
+        entries = info.get("entries")
+        if entries: return entries
+        return [info]
+
+    async def add_song(self, url: str|dict, streamable: bool = True) -> YTDLPAudio:
+        loop = asyncio.get_running_loop()
+        entries = await loop.run_in_executor(None, self.get_source_url, url)
+        audios = []
+        for entry in entries:
+            audio = await YTDLPAudio(entry, streamable=streamable, cache_on_init=len(self.queue)+len(audios)<=1, on_finished=self.finished, on_loading_finished=self.loaded, on_read=self.on_audio_read, on_clean_up=self.clean_up)
+            audios.append(audio)
+        self.queue += audios
         if (len(self.queue) > 1 and self.queue[1].playback_state == PlaybackState.NOT_PLAYING and self.queue[0].playback_state == PlaybackState.TRANSITIONING):
             self.current_song.finished(wait=False)
-        return audio
+        return audios
 
     async def play_next_song(self, force=True) -> YTDLPAudio:
         next_song = self.get_next_song()
-        if not next_song: return None
+        if not next_song or next_song.status != Status.FINISHED: return None
         if force:
             self.mixer.remove_audio_source("music", self.current_song)
             self.queue.remove(self.current_song)

@@ -46,7 +46,7 @@ class music(commands.Cog):
             await player.extras.get("channel").send(embed=embed)
 
     @group.command(name="play", description="song name or the link")
-    async def music(self, interaction: discord.Interaction, search: str):
+    async def music(self, interaction: discord.Interaction, search: Optional[str], file: Optional[discord.Attachment]):
         await interaction.response.defer()
         if not interaction.guild.voice_client:
             await interaction.user.voice.channel.connect()
@@ -54,10 +54,16 @@ class music(commands.Cog):
         vc = interaction.guild.voice_client
         player = self.get_guild_player(vc)
         player.extras["channel"] = interaction.channel
-        try: audio = await player.add_song(search)
-        except: return await interaction.followup.send(f'It was not possible to find the song: `{search}`') 
-        audio.extras["requester"] = interaction.user
-        metadata: Metadata = audio.metadata
+        if file and file.content_type in ('audio/mpeg', 'audio/ogg'):
+            try: audios = await player.add_song(file.url, streamable=False)
+            except: return await interaction.followup.send(f'It was not possible to play the attachment.')
+        elif search:
+            try: audios = await player.add_song(search)
+            except: return await interaction.followup.send(f'It was not possible to find the song: `{search}`') 
+        else: return await interaction.followup.send("You have to specify an audio source. ")
+        for audio in audios:
+            audio.extras["requester"] = interaction.user
+        metadata: Metadata = audios[0].metadata
         embed = Embed(title="🎵 Song added to the queue.", description=f'`{metadata.title} - {metadata.author}` was added to the queue.')
         await interaction.followup.send(embed=embed)
         if not vc.is_playing():
@@ -162,18 +168,19 @@ class music(commands.Cog):
             else:
                 progressbar += "-"
 
-        async with aiohttp.ClientSession() as session:
-            async with session.get(metadata.thumbnail_url) as response:
-                thumbnail = await response.read()
-        artwork = Image.open(BytesIO(thumbnail))
-        median = ImageStat.Stat(artwork).median
-        embed = Embed(color=discord.Color.from_rgb(median[0], median[1], median[2]), description=f'## [{metadata.title}]({metadata.url})\n-# by [{metadata.author}]({metadata.author_url})\n**{progressbar}**\n- {strftime("%H:%M:%S", gmtime(audio.get_position()))} - {strftime("%H:%M:%S", gmtime(metadata.length))}')
+        embed = Embed(description=f'## [{metadata.title}]({metadata.url})\n-# by [{metadata.author}]({metadata.author_url})\n**{progressbar}**\n- {strftime("%H:%M:%S", gmtime(audio.get_position()))} - {strftime("%H:%M:%S", gmtime(metadata.length))}')
+        if metadata.thumbnail_url:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(metadata.thumbnail_url) as response:
+                    thumbnail = await response.read()
+            artwork = Image.open(BytesIO(thumbnail))
+            median = ImageStat.Stat(artwork).median
+            embed.color=discord.Color.from_rgb(median[0], median[1], median[2])
+            embed.set_image(url=metadata.thumbnail_url)
         embed.add_field(name="Requested by:", value=f'`{audio.extras.get("requester").name}`', inline=True)
         next_song = player.get_next_song()
         if next_song:
             embed.add_field(name="Next up:", value=f"`{next_song.metadata.title} - {next_song.metadata.author}`" , inline=True)
-        embed.set_thumbnail(url=metadata.thumbnail_url)
-        embed.set_image(url=metadata.thumbnail_url)
         await interaction.response.send_message(embed=embed)
 
 async def setup(bot):

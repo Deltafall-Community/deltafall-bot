@@ -11,6 +11,7 @@ import asyncio
 from concurrent.futures import ThreadPoolExecutor
 import traceback
 import threading
+import aiohttp
 
 import discord
 import yt_dlp
@@ -29,6 +30,7 @@ class Metadata:
     length: float = None
 
 class Status(Enum):
+    IDLE = 0
     LOADING = 1
     FINISHED = 2
     FAILED = 3
@@ -43,7 +45,9 @@ class PlaybackState(Enum):
 @asyncinit
 class YTDLPAudio(discord.AudioSource):
     async def __init__(self,
-                       url: str,
+                       url: str|dict,
+                       streamable: bool = True,
+                       cache_on_init: bool = True,
                        on_finished: Callable[['YTDLPAudio'], Awaitable[Any]] = None,
                        on_loading_finished: Callable[['YTDLPAudio'], Awaitable[Any]] = None,
                        on_read: Callable[['YTDLPAudio', bytes], bytes] = None,
@@ -53,42 +57,65 @@ class YTDLPAudio(discord.AudioSource):
 
         self.playback_state = PlaybackState.NOT_PLAYING
         self.loop = False
+        self.streamable = streamable
         
         self.on_clean_up = on_clean_up
         self.on_finished = on_finished
         self.on_loading_finished = on_loading_finished
         self.on_read = on_read
-        self.status = Status.LOADING
+        self.status = Status.IDLE
 
-        self.event_loop = asyncio.get_event_loop()
-        self.stream_url = await self.event_loop.run_in_executor(None, self.get_source_url, url)
+        self.event_loop = asyncio.get_running_loop()
+        if type(url) == dict: self.stream_url = self.parse_from_ytdlp_dict(url)
+        else:
+            if streamable: self.stream_url = await self.event_loop.run_in_executor(None, self.get_source_url, url)
+            else: self.stream_url = url
 
-        # start ffmpeg decoding & storing in background
-        samples_per_second = 48000
-        channels = 2
-
-        try:
-            self.ffmpeg_process = (
-                ffmpeg
-                .input(self.stream_url)
-                .output('pipe:', format="s16le", ar=str(samples_per_second), ac=channels)
-                .run_async(pipe_stdout=True, pipe_stderr=True, quiet=True)
-            )
-        except ffmpeg.Error:
-            self.status = Status.FAILED
-            return
+        if not streamable:
+            self.metadata.title = urlparse(url).path.split("/")[-1]
+            self.metadata.author = "Discord Attachment"
 
         self.packet_index = 0
         self.packets = []
         self.total_rms = 0
+
+        if cache_on_init: await self.start_caching()
         
+    async def start_caching(self) -> None:
+        self.status = Status.LOADING
+        samples_per_second = 48000
+        channels = 2
+
+        if self.streamable:
+            try:
+                self.ffmpeg_process = (
+                    ffmpeg
+                    .input(self.stream_url)
+                    .output('pipe:', format="s16le", ar=str(samples_per_second), ac=channels)
+                    .run_async(pipe_stdout=True, pipe_stderr=True, quiet=True)
+                )
+            except ffmpeg.Error:
+                self.status = Status.FAILED
+                return
+        else:
+            try:
+                self.ffmpeg_process = (
+                    ffmpeg
+                    .input('pipe:')
+                    .output('pipe:', format="s16le", ar=str(samples_per_second), ac=channels)
+                    .run_async(pipe_stdin=True, pipe_stdout=True, pipe_stderr=True, quiet=True)
+                )
+            except ffmpeg.Error:
+                self.status = Status.FAILED
+                return
+
         self.lock = threading.Lock()
         executor = ThreadPoolExecutor()
+        if not self.streamable: self.event_loop.create_task(self.input_ffmpeg())
         self.event_loop.run_in_executor(executor, self.read_ffmpeg)
-
         # wait for the data the reach 1 second of audio (else the read function will end immediately)
         await self.event_loop.run_in_executor(None, self.wait_for_enough_data)
-
+        self.status = Status.FINISHED
         await self.on_loading_finished(self)
 
     def finished(self, wait: bool = True) -> None:
@@ -106,6 +133,11 @@ class YTDLPAudio(discord.AudioSource):
     def wait_for_enough_data(self) -> None:
         while len(self.packets) < 50: pass
 
+    async def input_ffmpeg(self) -> None:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(self.stream_url) as response:
+                async for byte in response.content:
+                    self.ffmpeg_process.stdin.write(byte)
     def read_ffmpeg(self) -> None:
         while True:
             pcm = self.ffmpeg_process.stdout.read(3840)
@@ -113,6 +145,7 @@ class YTDLPAudio(discord.AudioSource):
             if len(pcm) < 3840:pcm += b"\x00" * (3840 - len(pcm))
             with self.lock:
                 self.packets.append(pcm)
+                self.metadata.length = len(self.packets)*0.02
                 self.total_rms += audioop.rms(pcm, 2)
 
     def get_source_url(self, search: str) -> str:
@@ -122,22 +155,25 @@ class YTDLPAudio(discord.AudioSource):
         if urlparse(search).netloc != '': info = ydl.extract_info(search, download=False)
         else: info = ydl.extract_info(f"ytsearch1:{search}", download=False).get("entries")[0]
 
-        self.metadata.thumbnail_url=info.get("thumbnail")
-        self.metadata.author=info.get("uploader")
-        self.metadata.author_url=info.get("uploader_url")
-        self.metadata.title=info.get("title")
-        self.metadata.url=info.get("webpage_url")
-        created_on=info.get("timestamp")
-        if created_on: self.metadata.created_on = datetime.fromtimestamp(created_on)
-        self.metadata.length=info.get("duration")
+        return self.parse_from_ytdlp_dict(info)
 
-        platform = info.get("extractor")
+
+    def parse_from_ytdlp_dict(self, ytdlp_dict: dict):
+        self.metadata.thumbnail_url=ytdlp_dict.get("thumbnail")
+        self.metadata.author=ytdlp_dict.get("uploader")
+        self.metadata.author_url=ytdlp_dict.get("uploader_url")
+        self.metadata.title=ytdlp_dict.get("title")
+        self.metadata.url=ytdlp_dict.get("webpage_url")
+        created_on=ytdlp_dict.get("timestamp")
+        if created_on: self.metadata.created_on = datetime.fromtimestamp(created_on)
+
+        platform = ytdlp_dict.get("extractor")
         if platform: platform = platform.lower()
 
         match platform:
             case "youtube" | "soundcloud" | "bandcamp":
                 lastaudiobitrate = 0
-                for f in info['formats']:
+                for f in ytdlp_dict['formats']:
                     if f.get('acodec') != 'none':
                         bitrate = f.get('abr')
                         if bitrate and bitrate > lastaudiobitrate:
