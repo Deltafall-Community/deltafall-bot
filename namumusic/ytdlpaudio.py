@@ -173,6 +173,7 @@ class YTDLPAudio(discord.AudioSource):
         self.metadata.url=ytdlp_dict.get("webpage_url")
         created_on=ytdlp_dict.get("timestamp")
         if created_on: self.metadata.created_on = datetime.fromtimestamp(created_on)
+        self.metadata.length=ytdlp_dict.get("duration")
 
         platform = ytdlp_dict.get("extractor")
         if platform: platform = platform.lower()
