@@ -99,6 +99,7 @@ def db_join_club(connection, table, user: discord.User, leader: discord.User):
     connection.commit()
 async def join_club(interaction: discord.Interaction, connection, user: discord.User, leader: discord.User):
     joined_clubs = await get_user_clubs(interaction, connection, user)
+    joined_club=False
     if joined_clubs:
         for club in joined_clubs:
             if club.leader == leader:
