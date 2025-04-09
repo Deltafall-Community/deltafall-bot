@@ -20,7 +20,7 @@ def db_get_quote_id(connection, table, id):
     """)
     return quote.fetchone()
 async def get_quote_id(connection, table, id):
-    event_loop = asyncio.get_event_loop()
+    event_loop = asyncio.get_running_loop()
     quote = await event_loop.run_in_executor(None, db_get_quote_id, connection, table, id)
     if quote: return Quote(quote[0], quote[1], quote[-1])
 
@@ -31,7 +31,7 @@ def db_get_random_quote(connection, table):
     """)
     return quote.fetchone()
 async def get_random_quote(connection, table):    
-    event_loop = asyncio.get_event_loop()
+    event_loop = asyncio.get_running_loop()
     quote = await event_loop.run_in_executor(None, db_get_random_quote, connection, table)
     if quote: return Quote(quote[0], quote[1], quote[-1])
 
@@ -45,7 +45,7 @@ def db_add_quote(connection, table, author, quote):
     connection.commit()
     return cur.lastrowid
 async def add_quote(connection, table, author, quote):
-    event_loop = asyncio.get_event_loop()
+    event_loop = asyncio.get_running_loop()
     return await event_loop.run_in_executor(None, db_add_quote, connection, table, author, quote)
 
 def db_delete_quote(connection, table, id):
@@ -56,7 +56,7 @@ def db_delete_quote(connection, table, id):
         """, (id,))
     connection.commit()
 async def delete_quote(connection, table, id):
-    event_loop = asyncio.get_event_loop()
+    event_loop = asyncio.get_running_loop()
     return await event_loop.run_in_executor(None, db_delete_quote, connection, table, id)
 
 class randomquote(commands.Cog):
@@ -74,7 +74,7 @@ class randomquote(commands.Cog):
         return self.bot.quote_db
                 
     async def get_connection(self):
-        self.event_loop = asyncio.get_event_loop()
+        self.event_loop = asyncio.get_running_loop()
         return await self.event_loop.run_in_executor(None, self.check_connection)
 
     @app_commands.command(name="random_quote", description="get random quote")

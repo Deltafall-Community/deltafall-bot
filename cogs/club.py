@@ -41,7 +41,7 @@ def db_get_club(connection, table, leader: discord.User):
     """, (leader.id,)).fetchone()
 async def get_club(interaction: discord.Interaction, connection, leader: discord.User):
     table = interaction.guild.id
-    event_loop = asyncio.get_event_loop()
+    event_loop = asyncio.get_running_loop()
     club = await event_loop.run_in_executor(None, db_get_club, connection, table, leader)    
     if club: return ClubData(club[0], interaction.guild.get_member(club[1]), club[2], club[3], club[4], await get_club_users(interaction, connection, leader))
 
@@ -54,7 +54,7 @@ def db_get_club_users(connection, table, leader: discord.User):
 async def get_club_users(interaction: discord.Interaction, connection, leader: discord.User):
     table = interaction.guild.id
     discord_users = []
-    event_loop = asyncio.get_event_loop()
+    event_loop = asyncio.get_running_loop()
     users = await event_loop.run_in_executor(None, db_get_club_users, connection, table, leader)    
     for user in users: discord_users.append(interaction.guild.get_member(user[0]))
     return discord_users
@@ -67,8 +67,8 @@ def db_get_user_club(connection, table, user: discord.User):
     """, (user.id,)).fetchone()
 async def get_user_club(interaction: discord.Interaction,connection, user: discord.User):
     table = interaction.guild.id
-    event_loop = asyncio.get_event_loop()
-    club = await event_loop.run_in_executor(None, db_get_club_users, connection, table, user)
+    event_loop = asyncio.get_running_loop()
+    club = await event_loop.run_in_executor(None, db_get_user_club, connection, table, user)
     if club: return await get_club(interaction, connection, interaction.guild.get_member(club[1]))
 
 def db_join_club(connection, table, user: discord.User, leader: discord.User):
@@ -87,7 +87,7 @@ async def join_club(interaction: discord.Interaction, connection, user: discord.
     club = await get_club(interaction, connection, leader)
     table = interaction.guild.id
     if club:
-        event_loop = asyncio.get_event_loop()
+        event_loop = asyncio.get_running_loop()
         await event_loop.run_in_executor(None, db_join_club, connection, table, user, leader)
         return club
 
@@ -104,7 +104,7 @@ async def create_club(interaction: discord.Interaction, connection, leader: disc
     if owned_club: return ClubError.ALREADY_OWNED
     
     table = interaction.guild.id
-    event_loop = asyncio.get_event_loop()
+    event_loop = asyncio.get_running_loop()
     club = ClubData(name, leader)
     if desc: club.description = desc
     if icon_url: club.icon_url = icon_url
@@ -126,7 +126,7 @@ async def edit_club(interaction: discord.Interaction, connection, leader: discor
         if desc: club.description = desc
         if icon_url: club.icon_url = icon_url
         if banner_url: club.banner_url = banner_url
-        event_loop = asyncio.get_event_loop()
+        event_loop = asyncio.get_running_loop()
         await event_loop.run_in_executor(None, db_edit_club, connection, table, club)        
 
     return club
@@ -145,7 +145,7 @@ async def delete_club(interaction: discord.Interaction, connection, leader: disc
     if not owned_club: return None
 
     table = interaction.guild.id
-    event_loop = asyncio.get_event_loop()
+    event_loop = asyncio.get_running_loop()
     await event_loop.run_in_executor(None, db_delete_club, connection, table, leader)        
 
     return True
@@ -161,7 +161,7 @@ async def leave_club(interaction: discord.Interaction, connection, user: discord
     if not joined_club: return None
 
     table = interaction.guild.id
-    event_loop = asyncio.get_event_loop()
+    event_loop = asyncio.get_running_loop()
     await event_loop.run_in_executor(None, db_leave_club, connection, table, user)
 
     return True
@@ -258,7 +258,7 @@ class club(commands.Cog):
         return self.bot.club_db
                 
     async def get_connection(self):
-        self.event_loop = asyncio.get_event_loop()
+        self.event_loop = asyncio.get_running_loop()
         return await self.event_loop.run_in_executor(None, self.check_connection)
 
     group = app_commands.Group(name="club", description="club stuff")
