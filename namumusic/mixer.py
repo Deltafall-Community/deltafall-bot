@@ -51,3 +51,6 @@ class Mixer(discord.AudioSource):
                 else: output = audio_source_output
         if not output: output = b"\x00" * 3840
         return output
+    
+    def is_opus(self):
+        return False

@@ -42,7 +42,8 @@ class YTDLPMusicPlayer():
         if self.on_finished: await self.on_finished(audio, self)
 
     def clean_up(self, audio) -> None:
-        self.queue.remove(audio)
+        try: self.queue.remove(audio)
+        except: pass
         if not self.queue: self.vc.stop()
 
     async def loaded(self, audio) -> None:
@@ -134,5 +135,6 @@ class YTDLPMusicPlayer():
         if not next_song or not next_song.status in (Status.LOADING, Status.FINISHED): return None
         if force:
             self.mixer.remove_audio_source("music", self.current_song)
-            self.queue.remove(self.current_song)
+            try: self.queue.remove(self.current_song)
+            except: pass
         return await self.play(next_song)
