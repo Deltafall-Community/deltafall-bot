@@ -173,10 +173,11 @@ def db_leave_club(connection, table, user: discord.User, leader: discord.User):
 async def leave_club(interaction: discord.Interaction, connection, user: discord.User, leader: discord.User):
     clubs = await get_user_clubs(interaction, connection, user)
     is_in_leader_club=False
-    for club in clubs:
-        if club.leader == leader:
-            is_in_leader_club=True
-            break
+    if clubs:
+        for club in clubs:
+            if club.leader == leader:
+                is_in_leader_club=True
+                break
     if not is_in_leader_club: return None
 
     table = interaction.guild.id
