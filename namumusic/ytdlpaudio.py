@@ -139,13 +139,20 @@ class YTDLPAudio(discord.AudioSource):
                     self.ffmpeg_process.stdin.write(byte)
         self.ffmpeg_process.stdin.close()
     def read_ffmpeg(self) -> None:
+        end_silence=None
         while True:
             pcm = self.ffmpeg_process.stdout.read(3840)
             if not pcm: break
             if len(pcm) < 3840:pcm += b"\x00" * (3840 - len(pcm))
             with self.lock:
+                # discord only accepts mono audio so doing this actually saves some memory
+                pcm = audioop.tomono(pcm, 2, 0.5, 0.5) 
+                rms = audioop.rms(pcm, 2)
                 self.packets.append(pcm)
-                self.total_rms += audioop.rms(pcm, 2)
+                if rms < 500: end_silence=len(self.packets)
+                else: end_silence=None
+                self.total_rms += rms
+        if end_silence: self.packets=self.packets[:end_silence]
         self.metadata.length = len(self.packets)*0.02
         self.status = Status.FINISHED
 
@@ -196,12 +203,12 @@ class YTDLPAudio(discord.AudioSource):
                 if self.on_clean_up: self.on_clean_up(self)
                 return b''
             self.packet_index = 0
-
-        packet = self.packets[self.packet_index-1]
-
+ 
+        packet = audioop.tostereo(self.packets[self.packet_index-1], 2, 1.0, 1.0)
+        # discord.py for some reason does not like mono audio so we have to convert it back to stereo
 
         # leave it to the user to motifiy the packet
-        # e.g. custom effects   
+        # e.g. custom effects
         try:
             motified_packet = self.read_event(packet)
             if motified_packet: packet = motified_packet
