@@ -98,6 +98,14 @@ def db_join_club(connection, table, user: discord.User, leader: discord.User):
         """, (user.id, leader.id))
     connection.commit()
 async def join_club(interaction: discord.Interaction, connection, user: discord.User, leader: discord.User):
+    joined_clubs = await get_user_clubs(interaction, connection, user)
+    if joined_clubs:
+        for club in joined_clubs:
+            if club.leader == leader:
+                joined_club=True
+                break
+    if joined_club: return ClubError.ALREADY_JOINED
+    
     club = await get_club(interaction, connection, leader)
     table = interaction.guild.id
     if club:
@@ -305,7 +313,8 @@ class club(commands.Cog):
         await interaction.response.defer()
         if interaction.user == leader: return await interaction.followup.send(content="You can't join your own club, Duh.")
         club = await join_club(interaction, await self.get_connection(), interaction.user, leader)
-        if club: return await interaction.followup.send(f"Joined club led by {leader.mention}", ephemeral=False, allowed_mentions=discord.AllowedMentions.none())
+        if club == ClubError.ALREADY_JOINED: return await interaction.followup.send(content=f"You have already joined {leader.mention}'s club.", allowed_mentions=discord.AllowedMentions.none())
+        elif club: return await interaction.followup.send(f"Joined club led by {leader.mention}", ephemeral=False, allowed_mentions=discord.AllowedMentions.none())
         return await interaction.followup.send(f"No club was owned by {leader.mention}", ephemeral=False, allowed_mentions=discord.AllowedMentions.none())
 
     @group.command(name="leave", description="leaves a club")
