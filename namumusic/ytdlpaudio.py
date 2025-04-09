@@ -114,7 +114,7 @@ class YTDLPAudio(discord.AudioSource):
         if not self.streamable: self.event_loop.create_task(self.input_ffmpeg())
         self.event_loop.run_in_executor(executor, self.read_ffmpeg)
         # wait for the data the reach 1 second of audio (else the read function will end immediately)
-        await self.event_loop.run_in_executor(None, self.wait_for_enough_data)
+        while len(self.packets) < 50: await asyncio.sleep(1.0)
         await self.on_loading_finished(self)
 
     def finished(self, wait: bool = True) -> None:
@@ -128,9 +128,6 @@ class YTDLPAudio(discord.AudioSource):
     
     def read_event(self, packet: bytes) -> Optional[bytes]:
         if self.on_read: return self.on_read(self, packet)
-
-    def wait_for_enough_data(self) -> None:
-        while len(self.packets) < 50: pass
 
     async def input_ffmpeg(self) -> None:
         async with aiohttp.ClientSession() as session:
