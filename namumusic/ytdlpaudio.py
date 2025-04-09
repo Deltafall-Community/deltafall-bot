@@ -115,7 +115,6 @@ class YTDLPAudio(discord.AudioSource):
         self.event_loop.run_in_executor(executor, self.read_ffmpeg)
         # wait for the data the reach 1 second of audio (else the read function will end immediately)
         await self.event_loop.run_in_executor(None, self.wait_for_enough_data)
-        self.status = Status.FINISHED
         await self.on_loading_finished(self)
 
     def finished(self, wait: bool = True) -> None:
@@ -138,6 +137,7 @@ class YTDLPAudio(discord.AudioSource):
             async with session.get(self.stream_url) as response:
                 async for byte in response.content:
                     self.ffmpeg_process.stdin.write(byte)
+        self.ffmpeg_process.stdin.close()
     def read_ffmpeg(self) -> None:
         while True:
             pcm = self.ffmpeg_process.stdout.read(3840)
@@ -145,8 +145,9 @@ class YTDLPAudio(discord.AudioSource):
             if len(pcm) < 3840:pcm += b"\x00" * (3840 - len(pcm))
             with self.lock:
                 self.packets.append(pcm)
-                self.metadata.length = len(self.packets)*0.02
                 self.total_rms += audioop.rms(pcm, 2)
+        self.metadata.length = len(self.packets)*0.02
+        self.status = Status.FINISHED
 
     def get_source_url(self, search: str) -> str:
         ydl_opts = {'format': 'bestaudio/best', 'noplaylist': True , 'quiet': True} 
@@ -156,7 +157,6 @@ class YTDLPAudio(discord.AudioSource):
         else: info = ydl.extract_info(f"ytsearch1:{search}", download=False).get("entries")[0]
 
         return self.parse_from_ytdlp_dict(info)
-
 
     def parse_from_ytdlp_dict(self, ytdlp_dict: dict):
         self.metadata.thumbnail_url=ytdlp_dict.get("thumbnail")
@@ -201,7 +201,7 @@ class YTDLPAudio(discord.AudioSource):
 
 
         # leave it to the user to motifiy the packet
-        # e.g. c\ustom effects   
+        # e.g. custom effects   
         try:
             motified_packet = self.read_event(packet)
             if motified_packet: packet = motified_packet

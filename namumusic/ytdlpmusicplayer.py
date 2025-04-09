@@ -56,7 +56,7 @@ class YTDLPMusicPlayer():
         scale_factor = 6000 / (audio.total_rms / len(audio.packets))
         packet = audioop.mul(packet, 2, scale_factor)
         
-        if self.crossfade:
+        if audio.metadata.length and self.crossfade:
             current_time = audio.get_position()
             time_left = audio.metadata.length - current_time
             if time_left <= self.crossfade_length:
@@ -121,12 +121,9 @@ class YTDLPMusicPlayer():
         audios = []
         if streamable:
             entries = await loop.run_in_executor(None, self.get_source_url, url)
-            for entry in entries:
-                audio = await YTDLPAudio(entry, streamable=streamable, cache_on_init=len(self.queue)+len(audios)<=1, on_finished=self.finished, on_loading_finished=self.loaded, on_read=self.on_audio_read, on_clean_up=self.clean_up)
-                audios.append(audio)
+            for entry in entries: audios.append(await YTDLPAudio(entry, streamable=streamable, cache_on_init=len(self.queue)+len(audios)<=1, on_finished=self.finished, on_loading_finished=self.loaded, on_read=self.on_audio_read, on_clean_up=self.clean_up))
         else:
-            audio = await YTDLPAudio(url, streamable=streamable, cache_on_init=len(self.queue)+len(audios)<=1, on_finished=self.finished, on_loading_finished=self.loaded, on_read=self.on_audio_read, on_clean_up=self.clean_up)
-            audios.append(audio)
+            audios = [await YTDLPAudio(url, streamable=streamable, cache_on_init=len(self.queue)+len(audios)<=1, on_finished=self.finished, on_loading_finished=self.loaded, on_read=self.on_audio_read, on_clean_up=self.clean_up)]
         self.queue += audios
         if (len(self.queue) > 1 and self.queue[1].playback_state == PlaybackState.NOT_PLAYING and self.queue[0].playback_state == PlaybackState.TRANSITIONING):
             self.current_song.finished(wait=False)
