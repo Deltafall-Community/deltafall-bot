@@ -16,3 +16,4 @@ lxml
 asyncinit
 yt_dlp
 ffmpeg-python
+discord-py-paginators

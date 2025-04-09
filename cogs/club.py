@@ -7,6 +7,7 @@ import traceback
 import asyncio
 
 import discord
+from discord.ext.paginators.button_paginator import ButtonPaginator, PaginatorButton
 from discord.ext import commands
 from discord import app_commands
 from discord import Embed
@@ -33,11 +34,28 @@ async def create_club_embed(club: ClubData):
     embed.set_image(url=club.banner_url)
     return embed
 
+def db_get_table_clubs(connection, table):
+    cur = connection.cursor()
+    cur.execute(f"CREATE TABLE IF NOT EXISTS '{table}clubs'(name, leader, description, icon_url, banner_url)")
+    return cur.execute(f"""
+        SELECT * FROM '{table}clubs'
+    """).fetchall()
+async def get_guild_clubs(interaction: discord.Interaction, connection):
+    table = interaction.guild.id
+    event_loop = asyncio.get_running_loop()
+    clubs = await event_loop.run_in_executor(None, db_get_table_clubs, connection, table)    
+    guild_clubs=[]
+    if clubs:
+        for club in clubs:
+            leader=interaction.guild.get_member(club[1])
+            guild_clubs.append(ClubData(club[0], leader, club[2], club[3], club[4], await get_club_users(interaction, connection, leader)))
+        return guild_clubs
+
 def db_get_club(connection, table, leader: discord.User):
     cur = connection.cursor()
     cur.execute(f"CREATE TABLE IF NOT EXISTS '{table}clubs'(name, leader, description, icon_url, banner_url)")
     return cur.execute(f"""
-        SELECT *, leader FROM '{table}clubs' WHERE leader = ?
+        SELECT * FROM '{table}clubs' WHERE leader = ?
     """, (leader.id,)).fetchone()
 async def get_club(interaction: discord.Interaction, connection, leader: discord.User):
     table = interaction.guild.id
@@ -49,7 +67,7 @@ def db_get_club_users(connection, table, leader: discord.User):
     cur = connection.cursor()
     cur.execute(f"CREATE TABLE IF NOT EXISTS '{table}users'(user, leader)")
     return cur.execute(f"""
-        SELECT *, leader FROM '{table}users' WHERE leader = ?
+        SELECT * FROM '{table}users' WHERE leader = ?
     """, (leader.id,)).fetchall()
 async def get_club_users(interaction: discord.Interaction, connection, leader: discord.User):
     table = interaction.guild.id
@@ -59,17 +77,17 @@ async def get_club_users(interaction: discord.Interaction, connection, leader: d
     for user in users: discord_users.append(interaction.guild.get_member(user[0]))
     return discord_users
 
-def db_get_user_club(connection, table, user: discord.User):
+def db_get_user_clubs(connection, table, user: discord.User):
     cur = connection.cursor()
     cur.execute(f"CREATE TABLE IF NOT EXISTS '{table}users'(user, leader)")
     return cur.execute(f"""
-        SELECT *, user FROM '{table}users' WHERE user = ?
-    """, (user.id,)).fetchone()
-async def get_user_club(interaction: discord.Interaction,connection, user: discord.User):
+        SELECT * FROM '{table}users' WHERE user = ?
+    """, (user.id,)).fetchall()
+async def get_user_clubs(interaction: discord.Interaction,connection, user: discord.User):
     table = interaction.guild.id
     event_loop = asyncio.get_running_loop()
-    club = await event_loop.run_in_executor(None, db_get_user_club, connection, table, user)
-    if club: return await get_club(interaction, connection, interaction.guild.get_member(club[1]))
+    clubs = await event_loop.run_in_executor(None, db_get_user_clubs, connection, table, user)
+    if clubs: return [await get_club(interaction, connection, interaction.guild.get_member(club[1])) for club in clubs]
 
 def db_join_club(connection, table, user: discord.User, leader: discord.User):
     cur = connection.cursor()
@@ -80,10 +98,6 @@ def db_join_club(connection, table, user: discord.User, leader: discord.User):
         """, (user.id, leader.id))
     connection.commit()
 async def join_club(interaction: discord.Interaction, connection, user: discord.User, leader: discord.User):
-    joined_club = await get_user_club(interaction, connection, user)
-    
-    if joined_club: return ClubError.ALREADY_JOINED
-
     club = await get_club(interaction, connection, leader)
     table = interaction.guild.id
     if club:
@@ -150,19 +164,24 @@ async def delete_club(interaction: discord.Interaction, connection, leader: disc
 
     return True
 
-def db_leave_club(connection, table, user: discord.User):
+def db_leave_club(connection, table, user: discord.User, leader: discord.User):
     cur = connection.cursor()
     cur.execute(f"""
         DELETE FROM '{table}users'
-        WHERE user = ?""", (user.id,))
+        WHERE user = ? AND leader = ?""", (user.id,leader.id,))
     connection.commit()
-async def leave_club(interaction: discord.Interaction, connection, user: discord.User):
-    joined_club = await get_user_club(interaction, connection, user)
-    if not joined_club: return None
+async def leave_club(interaction: discord.Interaction, connection, user: discord.User, leader: discord.User):
+    clubs = await get_user_clubs(interaction, connection, user)
+    is_in_leader_club=False
+    for club in clubs:
+        if club.leader == leader:
+            is_in_leader_club=True
+            break
+    if not is_in_leader_club: return None
 
     table = interaction.guild.id
     event_loop = asyncio.get_running_loop()
-    await event_loop.run_in_executor(None, db_leave_club, connection, table, user)
+    await event_loop.run_in_executor(None, db_leave_club, connection, table, user, leader)
 
     return True
 
@@ -283,17 +302,17 @@ class club(commands.Cog):
     @group.command(name="join", description="joins a club")
     async def joinclub(self, interaction: discord.Interaction, leader: discord.User):
         await interaction.response.defer()
+        if interaction.user == leader: return await interaction.followup.send(content="You can't join your own club, Duh.")
         club = await join_club(interaction, await self.get_connection(), interaction.user, leader)
-        if club == ClubError.ALREADY_JOINED: return await interaction.followup.send(content="You have already joined a club.")
-        elif club: return await interaction.followup.send(f"Joined club lead by {leader.mention}", ephemeral=False, allowed_mentions=discord.AllowedMentions.none())
+        if club: return await interaction.followup.send(f"Joined club led by {leader.mention}", ephemeral=False, allowed_mentions=discord.AllowedMentions.none())
         return await interaction.followup.send(f"No club was owned by {leader.mention}", ephemeral=False, allowed_mentions=discord.AllowedMentions.none())
 
     @group.command(name="leave", description="leaves a club")
-    async def leaveclub(self, interaction: discord.Interaction):
+    async def leaveclub(self, interaction: discord.Interaction, leader: discord.User):
         await interaction.response.defer()
-        club = await leave_club(interaction, await self.get_connection(), interaction.user)
-        if club: return await interaction.followup.send(f"You have successfully left your club.", ephemeral=False, allowed_mentions=discord.AllowedMentions.none())
-        return await interaction.followup.send(f"You didn't join any club.", ephemeral=False, allowed_mentions=discord.AllowedMentions.none())
+        club = await leave_club(interaction, await self.get_connection(), interaction.user, leader)
+        if club: return await interaction.followup.send(f"You have successfully left {leader.mention}'s club.", ephemeral=False, allowed_mentions=discord.AllowedMentions.none())
+        return await interaction.followup.send(f"You didn't join {leader.mention}'s club.", ephemeral=False, allowed_mentions=discord.AllowedMentions.none())
 
     @group.command(name="info", description="gets club info")
     async def info(self, interaction: discord.Interaction, leader: discord.User):
@@ -305,6 +324,50 @@ class club(commands.Cog):
     @group.command(name="ping", description="ping club members")
     async def ping(self, interaction: discord.Interaction):
         return await self.club_ping(interaction, message=None)
+
+    @group.command(name="joined_list", description="list clubs you have joined")
+    async def joined_list(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+        clubs = await get_user_clubs(interaction, await self.get_connection(), interaction.user)
+        clubs_embeds=[discord.Embed(description=f"## List of clubs you've joined", color=discord.Color.from_rgb(255,255,255))]
+        current_page=0
+        if clubs:
+            for club in clubs:
+                if clubs_embeds[current_page].description.count('\n') > 5: current_page+=1
+                if len(clubs_embeds) < current_page+1: clubs_embeds.append(discord.Embed(description=f"", color=discord.Color.from_rgb(255,255,255)))
+                clubs_embeds[current_page].description += f"\n**{club.name}**\n-# Led by {club.leader.mention} • **Member No.{club.users.index(interaction.user)+1}**"
+        custom_buttons = {
+            "FIRST": PaginatorButton(label="First", position=0),
+            "LEFT": PaginatorButton(label="Back", position=1),
+            "PAGE_INDICATOR": PaginatorButton(label="Page N/A / N/A", position=2, disabled=False),
+            "RIGHT": PaginatorButton(label="Next", position=3),
+            "LAST": PaginatorButton(label="Last", position=4),
+            "STOP": None
+        }
+        paginator = ButtonPaginator(clubs_embeds, author_id=interaction.user.id, buttons=custom_buttons)
+        return await paginator.send(interaction)
+
+    @group.command(name="list", description="list clubs in the server")
+    async def list_club(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+        clubs = await get_guild_clubs(interaction, await self.get_connection())
+        clubs_embeds=[discord.Embed(description=f"## Clubs", color=discord.Color.from_rgb(255,255,255))]
+        current_page=0
+        if clubs:
+            for club in clubs:
+                if clubs_embeds[current_page].description.count('\n') > 9: current_page+=1
+                if len(clubs_embeds) < current_page+1: clubs_embeds.append(discord.Embed(description=f"", color=discord.Color.from_rgb(255,255,255)))
+                clubs_embeds[current_page].description += f"\n- **{club.name}**\n-# Led by {club.leader.mention} • **Member Count: {len(club.users)}**"
+        custom_buttons = {
+            "FIRST": PaginatorButton(label="First", position=0),
+            "LEFT": PaginatorButton(label="Back", position=1),
+            "PAGE_INDICATOR": PaginatorButton(label="Page N/A / N/A", position=2, disabled=False),
+            "RIGHT": PaginatorButton(label="Next", position=3),
+            "LAST": PaginatorButton(label="Last", position=4),
+            "STOP": None
+        }
+        paginator = ButtonPaginator(clubs_embeds, author_id=interaction.user.id, buttons=custom_buttons)
+        return await paginator.send(interaction)
 
     async def club_ping(self, interaction: discord.Interaction, message: discord.Message):
         await interaction.response.defer(ephemeral=True)
