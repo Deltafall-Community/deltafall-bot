@@ -16,4 +16,4 @@ lxml
 asyncinit
 yt_dlp
 ffmpeg-python
-discord-py-paginators
+discord-py-paginators @ git+https://github.com/Soheab/discord-py-paginators
