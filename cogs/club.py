@@ -350,7 +350,7 @@ class club(commands.Cog):
                 club_desc = (lambda s: s or "*No description.*")(club.description)
                 clubs_embeds[current_page].description += f'\n• **`{club.name}`** - **{textwrap.shorten((club_desc+" ")[:club_desc.find("\n")], 60)}**\n-# ↳ Led by {club.leader.mention} • **Member #{club.users.index(interaction.user)+1}**\n'
         custom_buttons = {
-            "FIRST": PaginatorButton(label="First Page:", position=0),
+            "FIRST": PaginatorButton(label=":First Page", position=0),
             "LEFT": PaginatorButton(label="Back", position=1),
             "PAGE_INDICATOR": PaginatorButton(label="Page N/A / N/A", position=2, disabled=False),
             "RIGHT": PaginatorButton(label="Next", position=3),
@@ -373,7 +373,7 @@ class club(commands.Cog):
                 club_desc = (lambda s: s or "*No description.*")(club.description)
                 clubs_embeds[current_page].description += f'\n• **`{club.name}`** - **{textwrap.shorten((club_desc+" ")[:club_desc.find("\n")], 60)}**\n-# ↳ Led by {club.leader.mention} • **Member Count: {len(club.users)}**\n'
         custom_buttons = {
-            "FIRST": PaginatorButton(label="First Page:", position=0),
+            "FIRST": PaginatorButton(label=":First Page", position=0),
             "LEFT": PaginatorButton(label="Back", position=1),
             "PAGE_INDICATOR": PaginatorButton(label="Page N/A / N/A", position=2, disabled=False),
             "RIGHT": PaginatorButton(label="Next", position=3),

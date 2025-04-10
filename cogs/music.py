@@ -153,7 +153,7 @@ class music(commands.Cog):
                 else: num=f"{num}. "
                 playlist_embeds[current_page].description += f'\n{num} **{track.metadata.title}**\n-# ↳ {track.metadata.author} • Requested by: {track.extras.get("requester").mention}\n'
             custom_buttons = {
-                "FIRST": PaginatorButton(label="First Page:", position=0),
+                "FIRST": PaginatorButton(label=":First Page", position=0),
                 "LEFT": PaginatorButton(label="Back", position=1),
                 "PAGE_INDICATOR": PaginatorButton(label="Page N/A / N/A", position=2, disabled=False),
                 "RIGHT": PaginatorButton(label="Next", position=3),
