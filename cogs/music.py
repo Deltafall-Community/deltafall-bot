@@ -1,15 +1,16 @@
+from typing import Optional
+from time import strftime
+from time import gmtime
+
 import discord
 from discord.ext import commands
 from discord import app_commands
-from discord import Embed
-from typing import Optional
+from discord.ext.paginators.button_paginator import ButtonPaginator, PaginatorButton
 
 from namumusic.ytdlpmusicplayer import YTDLPMusicPlayer
 from namumusic.ytdlpaudio import PlaybackState
 from namumusic.ytdlpaudio import Metadata
 from namumusic.ytdlpaudio import YTDLPAudio
-from time import strftime
-from time import gmtime
 
 import aiohttp
 from io import BytesIO
@@ -39,10 +40,10 @@ class music(commands.Cog):
             match prev_audio.playback_state:
                 case PlaybackState.TRANSITIONING:
                     audio = await player.play_next_song(force=False)
-                    embed = Embed(title="🎵 playing now", description=f'trasitioning to playing `{metadata.title} - {metadata.author}` now.')
+                    embed = discord.Embed(title="🎵 Playing now", description=f'Trasitioning to playing `{metadata.title} - {metadata.author}` now.')
                 case PlaybackState.FINISHED:
                     audio = await player.play_next_song(force=True)
-                    embed = Embed(title="🎵 playing now", description=f'`{metadata.title} - {metadata.author}` is playing now.')
+                    embed = discord.Embed(title="🎵 Playing now", description=f'`{metadata.title} - {metadata.author}` is playing now.')
             await player.extras.get("channel").send(embed=embed)
 
     @group.command(name="play", description="song name or the link")
@@ -54,7 +55,7 @@ class music(commands.Cog):
         vc = interaction.guild.voice_client
         player = self.get_guild_player(vc)
         player.extras["channel"] = interaction.channel
-        if file and file.content_type in ('audio/mpeg', 'audio/ogg'):
+        if file and file.content_type[:file.content_type.find("/")] == "audio":
             try: audios = await player.add_song(file.url, streamable=False)
             except: return await interaction.followup.send(f'It was not possible to play the attachment.')
         elif search:
@@ -64,7 +65,7 @@ class music(commands.Cog):
         for audio in audios:
             audio.extras["requester"] = interaction.user
         metadata: Metadata = audios[0].metadata
-        embed = Embed(title="🎵 Song added to the queue.", description=f'`{metadata.title} - {metadata.author}` was added to the queue.')
+        embed = discord.Embed(title="🎵 Song added to the queue.", description=f'`{metadata.title} - {metadata.author}` was added to the queue.')
         await interaction.followup.send(embed=embed)
         if not vc.is_playing():
             await player.play()
@@ -74,7 +75,7 @@ class music(commands.Cog):
         vc = interaction.guild.voice_client
         player = self.get_guild_player(vc)
         player.set_volume(volume / 100.0)
-        embed = Embed(title="Volume", description=f"The volume has been adjusted to {volume}%.")
+        embed = discord.Embed(title="Volume", description=f"The volume has been adjusted to {volume}%.")
         await interaction.response.send_message(embed=embed)
         
     @group.command(name="stop", description="stop everything")
@@ -83,21 +84,21 @@ class music(commands.Cog):
         vc.stop()
         self.delete_guild_player(vc)
         await vc.disconnect()
-        embed = Embed(title="⏹️ Music stopped", description="The music has been stopped.")
+        embed = discord.Embed(title="⏹️ Music stopped", description="The music has been stopped.")
         await interaction.response.send_message(embed=embed)
 
     @group.command(name="pause", description="pause music")
     async def pause(self, interaction: discord.Interaction):
         vc = interaction.guild.voice_client
         vc.pause()
-        embed = Embed(title="⏸️ Music paused", description="The music has been paused")
+        embed = discord.Embed(title="⏸️ Music paused", description="The music has been paused")
         await interaction.response.send_message(embed=embed)
 
     @group.command(name="resume", description="resume music")
     async def resume(self, interaction: discord.Interaction):
         vc = interaction.guild.voice_client
         vc.resume()
-        embed = Embed(title="▶️ Music Resumed", description="The music has been resumed.")
+        embed = discord.Embed(title="▶️ Music Resumed", description="The music has been resumed.")
         await interaction.response.send_message(embed=embed)
 
     @group.command(name="transition", description="adjust the transition of the song")
@@ -108,7 +109,7 @@ class music(commands.Cog):
         if strength:
             strength = min(max(0.1, strength), 9.0)
             player.crossfade_strength = strength
-        embed = Embed(title="Transition Set", description=f"Duration: {duration}\nStrength: {strength}")
+        embed = discord.Embed(title="Transition Set", description=f"Duration: {duration}\nStrength: {strength}")
         await interaction.response.send_message(embed=embed)
 
     @group.command(name="seek", description="seeks the song position")
@@ -116,7 +117,7 @@ class music(commands.Cog):
         vc = interaction.guild.voice_client
         player = self.get_guild_player(vc)
         player.seek(seconds)
-        embed = Embed(title="Seek", description=f"Seeked to {player.current_song.get_position()}")
+        embed = discord.Embed(title="Seek", description=f"Seeked to {player.current_song.get_position()}")
         await interaction.response.send_message(embed=embed)
 
     @group.command(name="skip", description="skip song")
@@ -127,7 +128,7 @@ class music(commands.Cog):
 
         if audio:
             metadata: Metadata = audio.metadata
-            embed = Embed(title="⏭️ Song skipped", description=f'Playing the next song in the queue: `{metadata.title}`.')
+            embed = discord.Embed(title="⏭️ Song skipped", description=f'Playing the next song in the queue: `{metadata.title}`.')
             await interaction.response.send_message(embed=embed)
         else:
             await interaction.response.send_message("There are no songs in the queue to skip")
@@ -138,12 +139,29 @@ class music(commands.Cog):
         player = self.get_guild_player(vc)
         queue = player.queue
         if not queue:
-            embed = Embed(title="📜 Playlist", description="The queue is empty.")
+            embed = discord.Embed(title="📜 Playlist", description="The queue is empty.")
             await interaction.response.send_message(embed=embed)
         else:
-            queue_list = "\n".join([f"- {track.metadata.title}" for track in queue])
-            embed = Embed(title="📜 Playlist", description=queue_list)
-            await interaction.response.send_message(embed=embed)
+            playlist_embeds = [discord.Embed(description="## 📜 Playlist")]
+            current_page=0
+            for num, track in zip(range(len(queue)), queue):
+                if playlist_embeds[current_page].description.count('\n') > 15: current_page+=1
+                if len(playlist_embeds) < current_page+1: playlist_embeds.append(discord.Embed(description=f"", color=discord.Color.from_rgb(255,255,255)))
+                if not num:
+                    if vc.is_paused(): num = "⏸"
+                    else: num = "▶"
+                else: num=f"{num}. "
+                playlist_embeds[current_page].description += f'\n{num} **{track.metadata.title}**\n-# ↳ {track.metadata.author} • Requested by: {track.extras.get("requester").mention}\n'
+            custom_buttons = {
+                "FIRST": PaginatorButton(label="First Page:", position=0),
+                "LEFT": PaginatorButton(label="Back", position=1),
+                "PAGE_INDICATOR": PaginatorButton(label="Page N/A / N/A", position=2, disabled=False),
+                "RIGHT": PaginatorButton(label="Next", position=3),
+                "LAST": PaginatorButton(label="Last Page:", position=4),
+                "STOP": None
+            }
+            paginator = ButtonPaginator(playlist_embeds, author_id=interaction.user.id, buttons=custom_buttons)
+            return await paginator.send(interaction)
 
     @group.command(name="current_playing", description="what is currently playing")
     async def current_playing(self, interaction: discord.Interaction):
@@ -168,7 +186,7 @@ class music(commands.Cog):
             else:
                 progressbar += "-"
 
-        embed = Embed(description=f'## [{metadata.title}]({metadata.url})\n-# by [{metadata.author}]({metadata.author_url})\n**{progressbar}**\n- {strftime("%H:%M:%S", gmtime(audio.get_position()))} - {strftime("%H:%M:%S", gmtime(metadata.length))}')
+        embed = discord.Embed(description=f'## [{metadata.title}]({metadata.url})\n-# by [{metadata.author}]({metadata.author_url})\n**{progressbar}**\n- {strftime("%H:%M:%S", gmtime(audio.get_position()))} - {strftime("%H:%M:%S", gmtime(metadata.length))}')
         if metadata.thumbnail_url:
             async with aiohttp.ClientSession() as session:
                 async with session.get(metadata.thumbnail_url) as response:
