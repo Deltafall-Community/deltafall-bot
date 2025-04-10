@@ -148,10 +148,10 @@ class music(commands.Cog):
                 if playlist_embeds[current_page].description.count('\n') > 15: current_page+=1
                 if len(playlist_embeds) < current_page+1: playlist_embeds.append(discord.Embed(description=f"", color=discord.Color.from_rgb(255,255,255)))
                 if not num:
-                    if vc.is_paused(): num = "⏸"
-                    else: num = "▶"
+                    if vc.is_paused(): num = f'- ⏸ {strftime("%H:%M:%S", gmtime(track.get_position()))} - {strftime("%H:%M:%S", gmtime(track.metadata.length))}\n  - '
+                    else: num = f'- ▶ {strftime("%H:%M:%S", gmtime(track.get_position()))} - {strftime("%H:%M:%S", gmtime(track.metadata.length))}\n  - '
                 else: num=f"{num}. "
-                playlist_embeds[current_page].description += f'\n{num} **{track.metadata.title}**\n-# ↳ {track.metadata.author} • Requested by: {track.extras.get("requester").mention}\n'
+                playlist_embeds[current_page].description += f'\n{num}**{track.metadata.title}**\n-# ↳ {track.metadata.author} • Requested by: {track.extras.get("requester").mention}\n'
             custom_buttons = {
                 "FIRST": PaginatorButton(label=":First Page", position=0),
                 "LEFT": PaginatorButton(label="Back", position=1),

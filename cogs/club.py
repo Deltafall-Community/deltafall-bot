@@ -348,7 +348,7 @@ class club(commands.Cog):
                 if clubs_embeds[current_page].description.count('\n') > 5: current_page+=1
                 if len(clubs_embeds) < current_page+1: clubs_embeds.append(discord.Embed(description=f"", color=discord.Color.from_rgb(255,255,255)))
                 club_desc = (lambda s: s or "*No description.*")(club.description)
-                clubs_embeds[current_page].description += f'\n• **`{club.name}`** - **{textwrap.shorten((club_desc+" ")[:club_desc.find("\n")], 60)}**\n-# ↳ Led by {club.leader.mention} • **Member #{club.users.index(interaction.user)+1}**\n'
+                clubs_embeds[current_page].description += f'\n- **`{club.name}`** - **{textwrap.shorten((club_desc+" ")[:club_desc.find("\n")], 60)}**\n-# ↳ Led by {club.leader.mention} • **Member #{club.users.index(interaction.user)+1}**\n'
         custom_buttons = {
             "FIRST": PaginatorButton(label=":First Page", position=0),
             "LEFT": PaginatorButton(label="Back", position=1),
@@ -371,7 +371,7 @@ class club(commands.Cog):
                 if clubs_embeds[current_page].description.count('\n') > 9: current_page+=1
                 if len(clubs_embeds) < current_page+1: clubs_embeds.append(discord.Embed(description=f"", color=discord.Color.from_rgb(255,255,255)))
                 club_desc = (lambda s: s or "*No description.*")(club.description)
-                clubs_embeds[current_page].description += f'\n• **`{club.name}`** - **{textwrap.shorten((club_desc+" ")[:club_desc.find("\n")], 60)}**\n-# ↳ Led by {club.leader.mention} • **Member Count: {len(club.users)}**\n'
+                clubs_embeds[current_page].description += f'\n- **`{club.name}`** - **{textwrap.shorten((club_desc+" ")[:club_desc.find("\n")], 60)}**\n-# ↳ Led by {club.leader.mention} • **Member Count: {len(club.users)}**\n'
         custom_buttons = {
             "FIRST": PaginatorButton(label=":First Page", position=0),
             "LEFT": PaginatorButton(label="Back", position=1),
