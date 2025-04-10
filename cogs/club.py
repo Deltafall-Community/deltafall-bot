@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import List
 import traceback
 import asyncio
+import textwrap
 
 import discord
 from discord.ext.paginators.button_paginator import ButtonPaginator, PaginatorButton
@@ -346,7 +347,8 @@ class club(commands.Cog):
             for club in clubs:
                 if clubs_embeds[current_page].description.count('\n') > 5: current_page+=1
                 if len(clubs_embeds) < current_page+1: clubs_embeds.append(discord.Embed(description=f"", color=discord.Color.from_rgb(255,255,255)))
-                clubs_embeds[current_page].description += f"\n**{club.name}**\n-# Led by {club.leader.mention} • **Member No.{club.users.index(interaction.user)+1}**"
+                club_desc = (lambda s: s or "*No description.*")(club.description)
+                clubs_embeds[current_page].description += f'\n• **`{club.name}`** - **{textwrap.shorten((club_desc+" ")[:club_desc.find("\n")], 60)}**\n-# ↳ Led by {club.leader.mention} • **Member #{club.users.index(interaction.user)+1}**\n'
         custom_buttons = {
             "FIRST": PaginatorButton(label="First", position=0),
             "LEFT": PaginatorButton(label="Back", position=1),
@@ -368,7 +370,8 @@ class club(commands.Cog):
             for club in clubs:
                 if clubs_embeds[current_page].description.count('\n') > 9: current_page+=1
                 if len(clubs_embeds) < current_page+1: clubs_embeds.append(discord.Embed(description=f"", color=discord.Color.from_rgb(255,255,255)))
-                clubs_embeds[current_page].description += f"\n- **{club.name}**\n-# Led by {club.leader.mention} • **Member Count: {len(club.users)}**"
+                club_desc = (lambda s: s or "*No description.*")(club.description)
+                clubs_embeds[current_page].description += f'\n• **`{club.name}`** - **{textwrap.shorten((club_desc+" ")[:club_desc.find("\n")], 60)}**\n-# ↳ Led by {club.leader.mention} • **Member Count: {len(club.users)}**\n'
         custom_buttons = {
             "FIRST": PaginatorButton(label="First", position=0),
             "LEFT": PaginatorButton(label="Back", position=1),
@@ -384,7 +387,7 @@ class club(commands.Cog):
         await interaction.response.defer(ephemeral=True)
         club = await get_club(interaction, await self.get_connection(), interaction.user)
         if club:
-            ping_str = f"{club.name} Club Ping:\n"
+            ping_str = f"## `{club.name}` Club Ping:\n"
             for user in club.users: ping_str += user.mention
             if not message: await interaction.channel.send(ping_str)
             else: await message.reply(ping_str)
