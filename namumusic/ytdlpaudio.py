@@ -94,8 +94,9 @@ class YTDLPAudio(discord.AudioSource):
                     .output('pipe:', format="s16le", ar=str(samples_per_second), ac=channels)
                     .run_async(pipe_stdout=True, pipe_stderr=True, quiet=True)
                 )
-            except ffmpeg.Error:
+            except ffmpeg.Error as e:
                 self.status = Status.FAILED
+                print(f"FFmpeg {id(self)} Exception While Caching: {e}")
                 return
         else:
             try:
@@ -107,6 +108,7 @@ class YTDLPAudio(discord.AudioSource):
                 )
             except ffmpeg.Error:
                 self.status = Status.FAILED
+                print(f"FFmpeg {id(self)} Exception While Caching: {e}")
                 return
 
         self.lock = threading.Lock()

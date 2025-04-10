@@ -48,7 +48,8 @@ class Mixer(discord.AudioSource):
                 audio_source = channel[audio_source_index]
                 audio_source_output = audio_source.read()
                 if audio_source_output == b'':
-                    del channel[audio_source_index]
+                    try: del channel[audio_source_index]
+                    except Exception as e: print(f"Mixer {id(self)} Exception While Removing From Channel: {e}")
                     continue
                 if output: output = self.mix_pcm_16bit(output, audio_source_output)
                 else: output = audio_source_output

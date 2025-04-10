@@ -43,7 +43,7 @@ class YTDLPMusicPlayer():
 
     def clean_up(self, audio) -> None:
         try: self.queue.remove(audio)
-        except: pass
+        except Exception as e: print(f"Player {id(self)} Exception While Removing From Queue: {e}")
         if not self.queue: self.vc.stop()
 
     async def loaded(self, audio) -> None:
@@ -134,7 +134,8 @@ class YTDLPMusicPlayer():
         next_song = self.get_next_song()
         if not next_song or not next_song.status in (Status.LOADING, Status.FINISHED): return None
         if force:
-            self.mixer.remove_audio_source("music", self.current_song)
-            try: self.queue.remove(self.current_song)
-            except: pass
+            try:
+                self.mixer.remove_audio_source("music", self.current_song)
+                self.queue.remove(self.current_song)
+            except Exception as e: print(f"Player {id(self)} Exception While Removing From Mixer & Queue: {e}")
         return await self.play(next_song)
