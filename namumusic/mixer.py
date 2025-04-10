@@ -1,5 +1,6 @@
 import discord
 import audioop
+import traceback
 import struct
 
 class Mixer(discord.AudioSource):
@@ -15,11 +16,13 @@ class Mixer(discord.AudioSource):
 
     def add_audio_source(self, channel_str: str, audio: discord.AudioSource) -> None:
         channel = self.get_channel(channel_str)
-        channel.append(audio)
+        try: channel.append(audio)
+        except Exception as e: print(f"Mixer {id(self)} Exception While Appending: {e}")
 
     def remove_audio_source(self, channel_str: str, audio: discord.AudioSource) -> None:
         channel = self.get_channel(channel_str)
-        channel.remove(audio)
+        try: channel.remove(audio)
+        except Exception as e: print(f"Mixer {id(self)} Exception While Removing: {e}")
 
     def mix_pcm_16bit(self, pcm1: bytes, pcm2: bytes) -> bytes:
         mixed_pcm = bytearray()
