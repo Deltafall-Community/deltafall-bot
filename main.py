@@ -12,6 +12,7 @@ import json
 
 import sqlitecloud
 import plyvel
+from namuschedule.schedule import Schedule
 
 logger = logging.getLogger('discord')
 logger.setLevel(logging.INFO)
@@ -34,7 +35,12 @@ class Bot(commands.Bot):
         self.token = self.config["token"]
         self.quote_db = self.connect_quote_db()
         self.club_db = self.connect_club_db()
+        self.scheduler = None
         self.valentine_lvl_db = plyvel.DB('valentine', create_if_missing=True)
+
+    async def get_scheduler(self):
+        if self.config.get("sqlitecloud-schedule"): self.scheduler = await Schedule(self.config["sqlitecloud-schedule"], True)
+        else: self.scheduler = await Schedule("schedule.db")
 
     def connect_quote_db(self):
         if self.config.get("sqlitecloud-quote"): return sqlitecloud.connect(self.config["sqlitecloud-quote"])
@@ -89,6 +95,7 @@ async def on_ready():
 
 async def main():
     async with bot:
+        await bot.get_scheduler()
         await bot.load_extensions()
         await bot.start(bot.token)
 
