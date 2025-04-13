@@ -83,7 +83,7 @@ class Schedule():
             cur.execute("""SELECT 1""")
         except Exception as ex:
             print(f"Reconnecting to Schedule Database... (Reason: {repr(ex)})")
-            self.db = self.db.connect_club_db()
+            self.db = self.connect_db()
             return self.check_connection()
         return self.db
                 
