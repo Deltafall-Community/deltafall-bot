@@ -3,7 +3,6 @@ from discord.ext import commands
 import os
 import logging
 import asyncio
-import yaml
 import sqlite3
 import sys
 import json
@@ -43,12 +42,16 @@ class Bot(commands.Bot):
         else: self.scheduler = await Schedule("schedule.db")
 
     def connect_quote_db(self):
-        if self.config.get("sqlitecloud-quote"): return sqlitecloud.connect(self.config["sqlitecloud-quote"])
-        else: return sqlite3.connect("quotes.db", check_same_thread=False)
+        try:
+            if self.config.get("sqlitecloud-quote"): return sqlitecloud.connect(self.config["sqlitecloud-quote"])
+            else: return sqlite3.connect("quotes.db", check_same_thread=False)
+        except Exception as e: print(f"Failed to connect to Quote Database.. (Reason: {e})") 
 
     def connect_club_db(self):
-        if self.config.get("sqlitecloud-club"): return sqlitecloud.connect(self.config["sqlitecloud-club"])
-        else: return sqlite3.connect("clubs.db", check_same_thread=False)
+        try:
+            if self.config.get("sqlitecloud-club"): return sqlitecloud.connect(self.config["sqlitecloud-club"])
+            else: return sqlite3.connect("clubs.db", check_same_thread=False)
+        except Exception as e: print(f"Failed to connect to Club Database.. (Reason: {e})") 
 
     async def load_extensions(self):
         for file in os.listdir(self.cogsfolder):
@@ -69,7 +72,7 @@ bot = Bot()
 
 @bot.command()
 async def reload(ctx, cog):
-    if ctx.author.id == 899113384660844634:  # Replace with your own ID
+    if ctx.author.id == bot.owner_id:
         try:
             await bot.reload_extension(f"{bot.cogsfolder}.{cog}")
             await ctx.send(f"Reloaded {cog}")
@@ -80,7 +83,7 @@ async def reload(ctx, cog):
 
 @bot.command()
 async def sync(ctx):
-    if ctx.author.id == 899113384660844634:  # Replace with your own ID
+    if ctx.author.id == bot.owner_id:
         try:
             synced = await bot.tree.sync()
             await ctx.send(f"Synced {len(synced)} command(s).")

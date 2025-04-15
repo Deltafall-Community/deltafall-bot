@@ -74,8 +74,10 @@ class Schedule():
         self.subscribers[object_name].append(callback)
 
     def connect_db(self):
-        if self.is_sqlitecloud: return sqlitecloud.connect(self.db_connect_str)
-        else: return sqlite3.connect(self.db_connect_str, check_same_thread=False)
+        try:
+            if self.is_sqlitecloud: return sqlitecloud.connect(self.db_connect_str)
+            else: return sqlite3.connect(self.db_connect_str, check_same_thread=False)
+        except Exception as e: print(f"Failed to connect to Schedule Database.. (Reason: {e})") 
 
     def check_connection(self):
         try:
