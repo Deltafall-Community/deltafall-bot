@@ -27,7 +27,7 @@ class yourenobody(commands.Cog):
         else: return "❌"
         
     @commands.Cog.listener()
-    async def on_member_join(self, member):
+    async def on_member_join(self, member: discord.User):
         if member.guild.id != self.guildid:
             return
         
@@ -38,8 +38,8 @@ class yourenobody(commands.Cog):
             flags.hasBeenFlaggedAsSpammer = True
             if len(member.public_flags.all()) - 1 < 1: flags.hasNoBadges = True
         elif len(member.public_flags.all()) < 1: flags.hasNoBadges = True
-        if member.avatar.url == member.default_avatar.url: flags.isUsingDefaultAvatar = True
-        if member.global_name == member.name: flags.hasNotSetDisplayName = True
+        if not member.avatar or (member.avatar and member.avatar.url == member.default_avatar.url): flags.isUsingDefaultAvatar = True
+        if not member.global_name or (member.global_name and member.global_name == member.name): flags.hasNotSetDisplayName = True
 
         totalScore = 0
 
