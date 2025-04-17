@@ -13,7 +13,7 @@ import time
 class Reminder:
     channel_id: int
     author_id: int
-    message: str = "No Message."
+    message: Optional[str]
 
 class reminder(commands.Cog):
     def __init__(self, bot):
@@ -25,7 +25,7 @@ class reminder(commands.Cog):
         bot: discord.Client = self.bot
         allowed_mentions = discord.AllowedMentions()
         allowed_mentions.everyone=False
-        await bot.get_channel(reminder.channel_id).send(f"{bot.get_user(reminder.author_id).mention} Reminder: `{reminder.message}`", allowed_mentions=allowed_mentions)
+        await bot.get_channel(reminder.channel_id).send(f"{bot.get_user(reminder.author_id).mention} Reminder{": `"+reminder.message+"`" if reminder.message is not None else ""}", allowed_mentions=allowed_mentions)
 
     group = app_commands.Group(name="remind", description="remind you")
 
@@ -34,10 +34,9 @@ class reminder(commands.Cog):
         await interaction.response.defer()
         on: datetime = dateparser.parse(on)
         if on.timestamp() < time.time(): on = datetime.fromtimestamp(time.time()+(time.time()-on.timestamp()))
-        reminder = Reminder(interaction.channel.id, interaction.user.id)
-        if message: reminder.message = message
+        reminder = Reminder(interaction.channel.id, interaction.user.id, message)
         await self.scheduler.add_payload(interaction.guild.id, on, reminder)
-        await interaction.followup.send(f"Reminder: `{reminder.message}` going off in <t:{str(int(on.timestamp()))}:R>.")
+        await interaction.followup.send(f"Reminder{": `"+message+"` " if message is not None else " "}going off <t:{str(int(on.timestamp()))}:R>.")
 
 async def setup(bot):
     await bot.add_cog(reminder(bot))
