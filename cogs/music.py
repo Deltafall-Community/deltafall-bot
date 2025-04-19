@@ -24,7 +24,7 @@ class music(commands.Cog):
     def get_guild_player(self, voice_client: discord.VoiceClient):
         player = self.guilds.get(voice_client.guild.id)
         if player: return player
-        else: player = YTDLPMusicPlayer(voice_client, on_finished=self.on_track_end)
+        else: player = YTDLPMusicPlayer(voice_client, on_finished=self.on_track_end, on_start=self.on_track_start)
         self.guilds[voice_client.guild.id] = player
         return player
 
@@ -33,18 +33,23 @@ class music(commands.Cog):
 
     group = app_commands.Group(name="music", description="music stuff")
     
+    async def on_track_start(self, audio: YTDLPAudio, player: YTDLPMusicPlayer):
+        metadata: Metadata = audio.metadata
+        match audio.playback_state:
+            case PlaybackState.TRANSITIONING:
+                embed = discord.Embed(title="🎵 Playing now", description=f'Trasitioning to playing `{metadata.title} - {metadata.author}` now.')
+            case PlaybackState.FINISHED:
+                embed = discord.Embed(title="🎵 Playing now", description=f'`{metadata.title} - {metadata.author}` is playing now.')
+        await player.extras.get("channel").send(embed=embed)
+
     async def on_track_end(self, prev_audio: YTDLPAudio, player: YTDLPMusicPlayer):
         audio = player.get_next_song()
         if audio:
-            metadata: Metadata = audio.metadata
             match prev_audio.playback_state:
                 case PlaybackState.TRANSITIONING:
                     audio = await player.play_next_song(force=False)
-                    embed = discord.Embed(title="🎵 Playing now", description=f'Trasitioning to playing `{metadata.title} - {metadata.author}` now.')
                 case PlaybackState.FINISHED:
                     audio = await player.play_next_song(force=True)
-                    embed = discord.Embed(title="🎵 Playing now", description=f'`{metadata.title} - {metadata.author}` is playing now.')
-            await player.extras.get("channel").send(embed=embed)
 
     @group.command(name="play", description="song name or the link")
     async def music(self, interaction: discord.Interaction, search: Optional[str], file: Optional[discord.Attachment]):
@@ -56,11 +61,11 @@ class music(commands.Cog):
         player = self.get_guild_player(vc)
         player.extras["channel"] = interaction.channel
         if file and file.content_type[:file.content_type.find("/")] == "audio":
-            try: audios = await player.add_song(file.url, streamable=False)
-            except: return await interaction.followup.send(f'It was not possible to play the attachment.')
+            audios = await player.add_song(file.url, streamable=False)
+            #except: return await interaction.followup.send(f'It was not possible to play the attachment.')
         elif search:
-            try: audios = await player.add_song(search)
-            except: return await interaction.followup.send(f'It was not possible to find the song: `{search}`') 
+            audios = await player.add_song(search)
+            #except: return await interaction.followup.send(f'It was not possible to find the song: `{search}`') 
         else: return await interaction.followup.send("You have to specify an audio source. ")
         for audio in audios:
             audio.extras["requester"] = interaction.user
@@ -110,14 +115,6 @@ class music(commands.Cog):
             strength = min(max(0.1, strength), 9.0)
             player.crossfade_strength = strength
         embed = discord.Embed(title="Transition Set", description=f"Duration: {duration}\nStrength: {strength}")
-        await interaction.response.send_message(embed=embed)
-
-    @group.command(name="seek", description="seeks the song position")
-    async def seek(self, interaction: discord.Interaction, seconds: float):
-        vc = interaction.guild.voice_client
-        player = self.get_guild_player(vc)
-        player.seek(seconds)
-        embed = discord.Embed(title="Seek", description=f"Seeked to {player.current_song.get_position()}")
         await interaction.response.send_message(embed=embed)
 
     @group.command(name="skip", description="skip song")

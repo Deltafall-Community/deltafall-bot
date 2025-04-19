@@ -14,12 +14,13 @@ from namumusic.mixer import Mixer
 from namumusic.ytdlpaudio import PlaybackState
 from namumusic.ytdlpaudio import YTDLPAudio
 from namumusic.ytdlpaudio import Status
+from namumusic.metadatagetter import get_metadata
 import discord
 
 class YTDLPMusicPlayer():
     def __init__(self,
                 vc: discord.VoiceClient,
-                on_start: Callable[['YTDLPMusicPlayer'], None] = None,
+                on_start: Callable[[YTDLPAudio, 'YTDLPMusicPlayer'], None] = None,
                 on_finished: Callable[[YTDLPAudio, 'YTDLPMusicPlayer'], None] = None,
                 volume: float = 1.0):
         self.extras = {}
@@ -46,8 +47,17 @@ class YTDLPMusicPlayer():
         except Exception as e: print(f"Player {id(self)} Exception While Removing From Queue: {e}")
         if not self.queue: self.vc.stop()
 
-    async def loaded(self, audio) -> None:
+    async def loaded(self, audio: YTDLPAudio) -> None:
         if self.current_song and self.current_song.playback_state == PlaybackState.FINISHED: await self.play(audio)
+
+    async def start(self, audio: YTDLPAudio) -> None:
+        if self.on_start: await self.on_start(audio, self)
+
+    async def failed(self, audio: YTDLPAudio) -> None:
+        await audio.start_caching(reset_stream_url=True)
+        if audio.status == Status.FAILED:
+            if audio == self.current_song: await self.play_next_song()
+            else: self.queue.remove(audio)
 
     def easeInOutSine(self, x: float) -> float:
         return (-(math.cos(math.pi * x) - 1) / 2)**self.crossfade_strength
@@ -69,6 +79,9 @@ class YTDLPMusicPlayer():
             
             elif current_time <= self.crossfade_length:
                 packet = audioop.mul(packet, 2, self.easeInOutSine(current_time / self.crossfade_length) )
+                audio.playback_state = PlaybackState.TRANSITIONING
+            
+            else: audio.playback_state = PlaybackState.PLAYING
 
         # set overall volume
         packet = audioop.mul(packet, 2, self.volume)
@@ -103,28 +116,15 @@ class YTDLPMusicPlayer():
         self.mixer.add_audio_source("music", self.current_song)
         
         if not self.vc.is_playing(): self.vc.play(self.mixer, fec=False, signal_type="music", bitrate=512)
-        if self.on_start: await self.on_start(self)
         return self.current_song
 
-    def get_source_url(self, search: str) -> str:
-        ydl_opts = {'format': 'bestaudio/best', 'quiet': True} 
-        ydl = yt_dlp.YoutubeDL(ydl_opts)
-        
-        if urlparse(search).netloc != '': info = ydl.extract_info(search, download=False)
-        else: info = ydl.extract_info(f"ytsearch1:{search}", download=False).get("entries")[0]
-
-        entries = info.get("entries")
-        if entries: return entries
-        return [info]
-
-    async def add_song(self, url: str|dict, streamable: bool = True) -> YTDLPAudio:
+    async def add_song(self, url: str, streamable: bool = True) -> YTDLPAudio:
         loop = asyncio.get_running_loop()
         audios = []
         if streamable:
-            entries = await loop.run_in_executor(None, self.get_source_url, url)
-            for entry in entries: audios.append(await YTDLPAudio(entry, streamable=streamable, cache_on_init=len(self.queue)+len(audios)<=1, on_finished=self.finished, on_loading_finished=self.loaded, on_read=self.on_audio_read, on_clean_up=self.clean_up))
-        else:
-            audios = [await YTDLPAudio(url, streamable=streamable, cache_on_init=len(self.queue)+len(audios)<=1, on_finished=self.finished, on_loading_finished=self.loaded, on_read=self.on_audio_read, on_clean_up=self.clean_up)]
+            entries = await loop.run_in_executor(None, get_metadata, url)
+            for entry in entries: audios.append(await YTDLPAudio(entry, streamable=streamable, cache_on_init=len(self.queue)+len(audios)<=1, on_start=self.start, on_finished=self.finished, on_loading_finished=self.loaded, on_read=self.on_audio_read, on_clean_up=self.clean_up, on_failed=self.failed))
+        else: audios = [await YTDLPAudio(url, streamable=streamable, cache_on_init=len(self.queue)+len(audios)<=1, on_start=self.start, on_finished=self.finished, on_loading_finished=self.loaded, on_read=self.on_audio_read, on_clean_up=self.clean_up, on_failed=self.failed)]
         self.queue += audios
         if (len(self.queue) > 1 and self.queue[1].playback_state == PlaybackState.NOT_PLAYING and self.queue[0].playback_state == PlaybackState.TRANSITIONING):
             self.current_song.finished(wait=False)
@@ -132,7 +132,7 @@ class YTDLPMusicPlayer():
 
     async def play_next_song(self, force=True) -> YTDLPAudio:
         next_song = self.get_next_song()
-        if not next_song or not next_song.status in (Status.LOADING, Status.FINISHED): return None
+        if not next_song or not next_song.status in (Status.LOADING, Status.CACHING, Status.FINISHED): return None
         if force:
             try:
                 self.mixer.remove_audio_source("music", self.current_song)
