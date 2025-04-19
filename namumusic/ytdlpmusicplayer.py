@@ -132,7 +132,7 @@ class YTDLPMusicPlayer():
 
     async def play_next_song(self, force=True) -> YTDLPAudio:
         next_song = self.get_next_song()
-        if not next_song or not next_song.status in (Status.LOADING, Status.CACHING, Status.FINISHED): return None
+        if not next_song: return None
         if force:
             try:
                 self.mixer.remove_audio_source("music", self.current_song)
