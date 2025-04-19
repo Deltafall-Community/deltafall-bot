@@ -207,8 +207,6 @@ class YTDLPAudio(discord.AudioSource):
         if not self.status in (Status.CACHING, Status.FINISHED):
             self.playback_state = PlaybackState.NOT_PLAYING
             return
-        
-        if not self.packet_index: self.start(False)
 
         self.packet_index += 1
         if self.packet_index > len(self.packets):
@@ -221,7 +219,7 @@ class YTDLPAudio(discord.AudioSource):
                 if self.on_clean_up: self.on_clean_up(self)
                 return b''
             self.packet_index = 0
- 
+
         packet = audioop.tostereo(self.packets[self.packet_index-1], 2, 1.0, 1.0)
         # discord.py for some reason does not like mono audio so we have to convert it back to stereo
 
@@ -231,6 +229,9 @@ class YTDLPAudio(discord.AudioSource):
             motified_packet = self.read_event(packet)
             if motified_packet: packet = motified_packet
         except Exception: traceback.print_exc()
+
+        # this gets sent here because the `PlaybackState` doesnt get applied until the player sets it 
+        if self.packet_index == 1: self.start(False)
 
         return packet
 
