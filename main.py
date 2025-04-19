@@ -72,7 +72,7 @@ bot = Bot()
 
 @bot.command()
 async def reload(ctx, cog):
-    if ctx.author.id == bot.owner_id:
+    if await bot.is_owner(ctx.author):
         try:
             await bot.reload_extension(f"{bot.cogsfolder}.{cog}")
             await ctx.send(f"Reloaded {cog}")
@@ -83,7 +83,7 @@ async def reload(ctx, cog):
 
 @bot.command()
 async def sync(ctx):
-    if ctx.author.id == bot.owner_id:
+    if await bot.is_owner(ctx.author):
         try:
             synced = await bot.tree.sync()
             await ctx.send(f"Synced {len(synced)} command(s).")
