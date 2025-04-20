@@ -63,7 +63,6 @@ class YTDLPAudio(discord.AudioSource):
 
         self.executor = ThreadPoolExecutor()
         self.read_ffmpeg_future = None
-        self.read_ffmpeg_error_future = None
         self.event_loop = asyncio.get_running_loop()
         if type(url) == Metadata: self.metadata = url
         else:
@@ -107,7 +106,6 @@ class YTDLPAudio(discord.AudioSource):
         self.lock = threading.Lock()
         if not self.streamable: self.event_loop.create_task(self.input_ffmpeg())
         self.read_ffmpeg_future = self.event_loop.run_in_executor(self.executor, self.read_ffmpeg)
-        self.read_ffmpeg_error_future = self.event_loop.run_in_executor(self.executor, self.read_ffmpeg_error)
         # wait for the data the reach 1 second of audio (else the read function will end immediately)
         while len(self.packets) < 50:
             if self.status == Status.FAILED: break
@@ -135,8 +133,7 @@ class YTDLPAudio(discord.AudioSource):
     
     def clean_up(self):
         if self.read_ffmpeg_future: self.read_ffmpeg_future.cancel()
-        if self.read_ffmpeg_error_future: self.read_ffmpeg_error_future.cancel()
-        self.executor.shutdown(wait=False)
+        self.executor.shutdown(wait=False, cancel_futures=True)
         self.packets.clear()
 
         if self.on_clean_up: self.on_clean_up(self)
@@ -156,10 +153,6 @@ class YTDLPAudio(discord.AudioSource):
                 async for byte in response.content:
                     self.ffmpeg_process.stdin.write(byte)
         self.ffmpeg_process.stdin.close()
-    def read_ffmpeg_error(self) -> None:
-        error=None
-        while not error: error = self.ffmpeg_process.stderr.read(4096)
-        self.status = Status.FAILED
     def read_ffmpeg(self) -> None:
         end_silence=None
         while True:
@@ -178,6 +171,9 @@ class YTDLPAudio(discord.AudioSource):
             if end_silence: self.packets=self.packets[:end_silence]
             self.metadata.length = len(self.packets)*0.02
             self.status = Status.FINISHED
+        else:
+            self.failed()
+            self.status = Status.FAILED
 
     def get_source_url(self, search: str) -> str:
         ydl_opts = {'format': 'bestaudio/best', 'noplaylist': True , 'quiet': True} 
