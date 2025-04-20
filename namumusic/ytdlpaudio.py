@@ -134,8 +134,8 @@ class YTDLPAudio(discord.AudioSource):
                 except Exception: traceback.print_exc()
     
     def clean_up(self):
-        if self.read_ffmpeg_future: print(self.read_ffmpeg_future.cancel())
-        if self.read_ffmpeg_error_future: print(self.read_ffmpeg_error_future.cancel())
+        if self.read_ffmpeg_future: self.read_ffmpeg_future.cancel()
+        if self.read_ffmpeg_error_future: self.read_ffmpeg_error_future.cancel()
         self.executor.shutdown(wait=False)
         self.packets.clear()
 
