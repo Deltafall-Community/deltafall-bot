@@ -61,6 +61,7 @@ class YTDLPAudio(discord.AudioSource):
         self.on_read = on_read
         self.status = Status.IDLE
 
+        self.executor = ThreadPoolExecutor()
         self.event_loop = asyncio.get_running_loop()
         if type(url) == Metadata: self.metadata = url
         else:
@@ -102,10 +103,9 @@ class YTDLPAudio(discord.AudioSource):
             )
 
         self.lock = threading.Lock()
-        executor = ThreadPoolExecutor()
         if not self.streamable: self.event_loop.create_task(self.input_ffmpeg())
-        self.event_loop.run_in_executor(executor, self.read_ffmpeg)
-        self.event_loop.run_in_executor(executor, self.read_ffmpeg_error)
+        self.event_loop.run_in_executor(self.executor, self.read_ffmpeg)
+        self.event_loop.run_in_executor(self.executor, self.read_ffmpeg_error)
         # wait for the data the reach 1 second of audio (else the read function will end immediately)
         while len(self.packets) < 50:
             if self.status == Status.FAILED: break
@@ -131,6 +131,10 @@ class YTDLPAudio(discord.AudioSource):
                 try: future.result()
                 except Exception: traceback.print_exc()
     
+    def clean_up(self):
+        self.executor.shutdown(False)
+        if self.on_clean_up: self.on_clean_up(self)
+
     def failed(self) -> None:
         if self.on_failed:
             future=asyncio.run_coroutine_threadsafe(self.on_failed(self), self.event_loop)
@@ -216,7 +220,7 @@ class YTDLPAudio(discord.AudioSource):
                     self.playback_state = PlaybackState.FINISHED
                     self.finished()
                 self.playback_state = PlaybackState.FINISHED
-                if self.on_clean_up: self.on_clean_up(self)
+                self.clean_up()
                 return b''
             self.packet_index = 0
 

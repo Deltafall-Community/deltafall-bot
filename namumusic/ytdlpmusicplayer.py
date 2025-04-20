@@ -57,7 +57,7 @@ class YTDLPMusicPlayer():
         await audio.start_caching(reset_stream_url=True)
         if audio.status == Status.FAILED:
             if audio == self.current_song: await self.play_next_song()
-            else: self.queue.remove(audio)
+            else: self.current_song.clean_up()
 
     def easeInOutSine(self, x: float) -> float:
         return (-(math.cos(math.pi * x) - 1) / 2)**self.crossfade_strength
@@ -135,7 +135,7 @@ class YTDLPMusicPlayer():
         if not next_song: return None
         if force:
             try:
+                self.current_song.clean_up()
                 self.mixer.remove_audio_source("music", self.current_song)
-                self.queue.remove(self.current_song)
             except Exception as e: print(f"Player {id(self)} Exception While Removing From Mixer & Queue: {e}")
         return await self.play(next_song)
