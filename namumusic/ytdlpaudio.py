@@ -132,6 +132,7 @@ class YTDLPAudio(discord.AudioSource):
                 except Exception: traceback.print_exc()
     
     def clean_up(self):
+        self.ffmpeg_process.terminate()
         if self.read_ffmpeg_future: self.read_ffmpeg_future.cancel()
         self.executor.shutdown(wait=False, cancel_futures=True)
         self.packets.clear()
@@ -151,7 +152,8 @@ class YTDLPAudio(discord.AudioSource):
         async with aiohttp.ClientSession() as session:
             async with session.get(self.metadata.stream_url) as response:
                 async for byte in response.content:
-                    self.ffmpeg_process.stdin.write(byte)
+                    try: self.ffmpeg_process.stdin.write(byte)
+                    except: break
         self.ffmpeg_process.stdin.close()
     def read_ffmpeg(self) -> None:
         end_silence=None

@@ -42,6 +42,9 @@ class YTDLPMusicPlayer():
     async def finished(self, audio) -> None:
         if self.on_finished: await self.on_finished(audio, self)
 
+    def self_clean_up(self):
+        for song in self.queue: song.clean_up()
+
     def clean_up(self, audio) -> None:
         try: self.queue.remove(audio)
         except Exception as e: print(f"Player {id(self)} Exception While Removing From Queue: {e}")
