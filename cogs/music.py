@@ -40,9 +40,9 @@ class music(commands.Cog):
         metadata: Metadata = audio.metadata
         match audio.playback_state:
             case PlaybackState.TRANSITIONING:
-                embed = discord.Embed(title="🎵 Playing now", description=f'Trasitioning to playing `{metadata.title} - {metadata.author}` now.')
+                embed = discord.Embed(description=f'## 🎵 Playing now\nTrasitioning to playing `{metadata.title} - {metadata.author}` now.')
             case PlaybackState.FINISHED:
-                embed = discord.Embed(title="🎵 Playing now", description=f'`{metadata.title} - {metadata.author}` is playing now.')
+                embed = discord.Embed(description=f'## 🎵 Playing now\n`{metadata.title} - {metadata.author}` is playing now.')
         await player.extras.get("channel").send(embed=embed)
 
     async def on_track_end(self, prev_audio: YTDLPAudio, player: YTDLPMusicPlayer):
@@ -73,7 +73,7 @@ class music(commands.Cog):
         for audio in audios:
             audio.extras["requester"] = interaction.user
         metadata: Metadata = audios[0].metadata
-        embed = discord.Embed(title="🎵 Song added to the queue.", description=f'`{metadata.title} - {metadata.author}` was added to the queue.')
+        embed = discord.Embed(description=f'## 🎵 Song added to the queue.\n`{metadata.title} - {metadata.author}` was added to the queue.')
         await interaction.followup.send(embed=embed)
         if not vc.is_playing():
             await player.play()
@@ -83,7 +83,7 @@ class music(commands.Cog):
         vc = interaction.guild.voice_client
         player = self.get_guild_player(vc)
         player.set_volume(volume / 100.0)
-        embed = discord.Embed(title="Volume", description=f"The volume has been adjusted to {volume}%.")
+        embed = discord.Embed(description=f"## Volume\n The volume has been adjusted to {volume}%.")
         await interaction.response.send_message(embed=embed)
         
     @group.command(name="stop", description="stop everything")
@@ -92,21 +92,21 @@ class music(commands.Cog):
         vc.stop()
         self.delete_guild_player(vc)
         await vc.disconnect()
-        embed = discord.Embed(title="⏹️ Music stopped", description="The music has been stopped.")
+        embed = discord.Embed(description="## ⏹️ Music Stopped\nThe music has been stopped.")
         await interaction.response.send_message(embed=embed)
 
     @group.command(name="pause", description="pause music")
     async def pause(self, interaction: discord.Interaction):
         vc = interaction.guild.voice_client
         vc.pause()
-        embed = discord.Embed(title="⏸️ Music paused", description="The music has been paused")
+        embed = discord.Embed(description="## ⏸️ Music Paused\nThe music has been paused")
         await interaction.response.send_message(embed=embed)
 
     @group.command(name="resume", description="resume music")
     async def resume(self, interaction: discord.Interaction):
         vc = interaction.guild.voice_client
         vc.resume()
-        embed = discord.Embed(title="▶️ Music Resumed", description="The music has been resumed.")
+        embed = discord.Embed(description="## ▶️ Music Resumed\nThe music has been resumed.")
         await interaction.response.send_message(embed=embed)
 
     @group.command(name="transition", description="adjust the transition of the song")
@@ -117,7 +117,7 @@ class music(commands.Cog):
         if strength:
             strength = min(max(0.1, strength), 9.0)
             player.crossfade_strength = strength
-        embed = discord.Embed(title="Transition Set", description=f"Duration: {duration}\nStrength: {strength}")
+        embed = discord.Embed(description=f"## Transition Set\nDuration: {duration}\nStrength: {strength}")
         await interaction.response.send_message(embed=embed)
 
     @group.command(name="skip", description="skip song")
@@ -128,7 +128,7 @@ class music(commands.Cog):
 
         if audio:
             metadata: Metadata = audio.metadata
-            embed = discord.Embed(title="⏭️ Song skipped", description=f'Playing the next song in the queue: `{metadata.title}`.')
+            embed = discord.Embed(description=f'## ⏭️ Song skipped\nPlaying the next song in the queue: `{metadata.title}`.')
             await interaction.response.send_message(embed=embed)
         else:
             await interaction.response.send_message("There are no songs in the queue to skip")
@@ -139,7 +139,7 @@ class music(commands.Cog):
         player = self.get_guild_player(vc)
         queue = player.queue
         if not queue:
-            embed = discord.Embed(title="📜 Playlist", description="The queue is empty.")
+            embed = discord.Embed(description="## 📜 Playlist\nThe queue is empty.")
             await interaction.response.send_message(embed=embed)
         else:
             playlist_embeds = [discord.Embed(description="## 📜 Playlist")]
