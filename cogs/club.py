@@ -326,7 +326,7 @@ class club(commands.Cog):
 
     @group.command(name="join", description="joins a club")
     async def joinclub(self, interaction: discord.Interaction, leader: discord.User):
-        await self.joinclub(interaction, leader)
+        await self.join_club(interaction, leader)
 
     async def join_club(self, interaction: discord.Interaction, leader: discord.User):
         await interaction.response.defer(ephemeral=True)
