@@ -1,4 +1,4 @@
-discord.py
+discord.py @ git+https://github.com/DA-344/d.py@feat/components-v2
 discord.py[voice]
 pillow
 pet-pet-gif
