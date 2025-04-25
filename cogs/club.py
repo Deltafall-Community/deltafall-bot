@@ -207,13 +207,14 @@ class EditClubModal(discord.ui.Modal, title='Edit Club'):
         required=False,
     )
 
-    def __init__(self, connection):
+    def __init__(self, connection, club_obj):
         super().__init__()
         self.connection = connection
+        self.club_obj = club_obj
 
     async def on_submit(self, interaction: discord.Interaction):
         club = await edit_club(interaction, self.connection, interaction.user, self.description.value, self.icon_url.value, self.banner_url.value)
-        if club: return await interaction.response.send_message(view=ClubView(club_obj=self, club=club))
+        if club: return await interaction.response.send_message(view=ClubView(club_obj=self.club_obj, club=club, timeout=None))
         return await interaction.response.send_message(f"You are not a leader of a club.", ephemeral=False, allowed_mentions=discord.AllowedMentions.none())
 
     async def on_error(self, interaction: discord.Interaction, error: Exception) -> None:
@@ -246,14 +247,15 @@ class CreateClubModal(discord.ui.Modal, title='Create Club'):
         required=False
     )
 
-    def __init__(self, connection):
+    def __init__(self, connection, club_obj):
         super().__init__()
         self.connection = connection
+        self.club_obj = club_obj
 
     async def on_submit(self, interaction: discord.Interaction):
         club = await create_club(interaction, self.connection, interaction.user, self.name.value, self.description.value, self.icon_url.value, self.banner_url.value)
         if club == ClubError.ALREADY_OWNED: return await interaction.response.send_message(content="You have already owned a club.")
-        await interaction.response.send_message(view=ClubView(club_obj=self, club=club))
+        await interaction.response.send_message(view=ClubView(club_obj=self.club_obj, club=club, timeout=None))
 
     async def on_error(self, interaction: discord.Interaction, error: Exception) -> None:
         await interaction.response.send_message('Something went wrong.', ephemeral=True)
@@ -309,12 +311,12 @@ class club(commands.Cog):
 
     @group.command(name="create", description="creates your club")
     async def createclub(self, interaction: discord.Interaction):
-        club_modal = CreateClubModal(await self.get_connection())
+        club_modal = CreateClubModal(await self.get_connection(), self)
         await interaction.response.send_modal(club_modal)
 
     @group.command(name="edit", description="edits your club")
     async def editclub(self, interaction: discord.Interaction):
-        club_modal = EditClubModal(await self.get_connection())
+        club_modal = EditClubModal(await self.get_connection(), self)
         await interaction.response.send_modal(club_modal)
 
     @group.command(name="disband", description="disband/deletes your club")
@@ -340,14 +342,14 @@ class club(commands.Cog):
     async def leaveclub(self, interaction: discord.Interaction, leader: discord.User):
         await interaction.response.defer()
         club = await leave_club(interaction, await self.get_connection(), interaction.user, leader)
-        if club: return await interaction.followup.send(f"You have successfully left {leader.mention}'s club.", ephemeral=False, allowed_mentions=discord.AllowedMentions.none())
-        return await interaction.followup.send(f"You didn't join {leader.mention}'s club.", ephemeral=False, allowed_mentions=discord.AllowedMentions.none())
+        if club: return await interaction.followup.send(f"You have successfully left {leader.mention}'s club.", ephemeral=True, allowed_mentions=discord.AllowedMentions.none())
+        return await interaction.followup.send(f"You didn't join {leader.mention}'s club.", ephemeral=True, allowed_mentions=discord.AllowedMentions.none())
 
     @group.command(name="info", description="gets club info")
     async def info(self, interaction: discord.Interaction, leader: discord.User):
         await interaction.response.defer()
         club = await get_club(interaction, await self.get_connection(), leader)
-        if club: return await interaction.followup.send(view=ClubView(club_obj=self, club=club))
+        if club: return await interaction.followup.send(view=ClubView(club_obj=self, club=club, timeout=None))
         return await interaction.followup.send(f"No club was owned by {leader.mention}", ephemeral=False, allowed_mentions=discord.AllowedMentions.none())
 
     @group.command(name="ping", description="ping club members")
