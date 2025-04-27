@@ -19,3 +19,4 @@ ffmpeg-python
 discord-py-paginators @ git+https://github.com/Soheab/discord-py-paginators
 dateparser
 soundcloud-lib
+aiosqlite
