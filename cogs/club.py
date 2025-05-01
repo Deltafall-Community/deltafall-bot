@@ -40,6 +40,7 @@ async def get_guild_clubs(interaction: discord.Interaction, connection):
     if clubs:
         for club in clubs:
             leader=interaction.guild.get_member(club[1])
+            if not leader: return
             guild_clubs.append(ClubData(club[0], leader, club[2], club[3], club[4], await get_club_users(interaction, connection, leader)))
         return guild_clubs
 
@@ -66,7 +67,9 @@ async def get_club_users(interaction: discord.Interaction, connection, leader: d
     discord_users = []
     event_loop = asyncio.get_running_loop()
     users = await event_loop.run_in_executor(None, db_get_club_users, connection, table, leader)    
-    for user in users: discord_users.append(interaction.guild.get_member(user[0]))
+    for user in users:
+        user = interaction.guild.get_member(user[0])
+        if user: discord_users.append()
     return discord_users
 
 def db_get_user_clubs(connection, table, user: discord.User):
@@ -367,7 +370,8 @@ class club(commands.Cog):
                 if clubs_embeds[current_page].description.count('\n') > 9: current_page+=1
                 if len(clubs_embeds) < current_page+1: clubs_embeds.append(discord.Embed(description=f"", color=discord.Color.from_rgb(255,255,255)))
                 club_desc = (lambda s: s or "*No description.*")(club.description)
-                clubs_embeds[current_page].description += f'\n- **`{club.name}`** - **{textwrap.shorten((club_desc+" ")[:club_desc.find("\n")], 60)}**\n-# ↳ Led by {club.leader.mention} • **Member #{club.users.index(interaction.user)+1}**\n'
+                club_leader_mention = (lambda s: s or "*Unknown User*")(club.leader.mention)
+                clubs_embeds[current_page].description += f'\n- **`{club.name}`** - **{textwrap.shorten((club_desc+" ")[:club_desc.find("\n")], 60)}**\n-# ↳ Led by {club_leader_mention} • **Member #{club.users.index(interaction.user)+1}**\n'
         custom_buttons = {
             "FIRST": PaginatorButton(label="", position=0),
             "LEFT": PaginatorButton(label="Back", position=1),
@@ -390,7 +394,8 @@ class club(commands.Cog):
                 if clubs_embeds[current_page].description.count('\n') > 9: current_page+=1
                 if len(clubs_embeds) < current_page+1: clubs_embeds.append(discord.Embed(description=f"", color=discord.Color.from_rgb(255,255,255)))
                 club_desc = (lambda s: s or "*No description.*")(club.description)
-                clubs_embeds[current_page].description += f'\n- **`{club.name}`** - **{textwrap.shorten((club_desc+" ")[:club_desc.find("\n")], 60)}**\n-# ↳ Led by {club.leader.mention} • **Member Count: {len(club.users)}**\n'
+                club_leader_mention = (lambda s: s or "*Unknown User*")(club.leader.mention)
+                clubs_embeds[current_page].description += f'\n- **`{club.name}`** - **{textwrap.shorten((club_desc+" ")[:club_desc.find("\n")], 60)}**\n-# ↳ Led by {club_leader_mention} • **Member Count: {len(club.users)}**\n'
         custom_buttons = {
             "FIRST": PaginatorButton(label="", position=0),
             "LEFT": PaginatorButton(label="Back", position=1),
