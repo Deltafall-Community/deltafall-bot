@@ -67,10 +67,7 @@ async def get_club_users(interaction: discord.Interaction, connection, leader: d
     discord_users = []
     event_loop = asyncio.get_running_loop()
     users = await event_loop.run_in_executor(None, db_get_club_users, connection, table, leader)    
-    for user in users:
-        user = interaction.guild.get_member(user[0])
-        if user: discord_users.append()
-    return discord_users
+    return [u for user in users if (u := interaction.guild.get_member(user[0])) is not None]
 
 def db_get_user_clubs(connection, table, user: discord.User):
     cur = connection.cursor()
