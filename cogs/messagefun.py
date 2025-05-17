@@ -23,6 +23,8 @@ class messagefun(commands.Cog):
             await message.add_reaction("⭐")
         if "miku" in message.content.lower():
             await message.reply("i'm thinking miku miku oo ee oo")
+        if "teto" in message.content.lower():
+            await message.reply("https://tenor.com/view/teto-gif-10942464254842861044")
 
 async def setup(bot):
     await bot.add_cog(messagefun(bot))
