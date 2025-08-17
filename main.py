@@ -12,6 +12,7 @@ import json
 import sqlitecloud
 import plyvel
 from namuschedule.schedule import Schedule
+from namuphishingdetection.phishingdetector import PhishingDetector
 
 logger = logging.getLogger('discord')
 logger.setLevel(logging.INFO)
@@ -35,7 +36,11 @@ class Bot(commands.Bot):
         self.quote_db = self.connect_quote_db()
         self.club_db = self.connect_club_db()
         self.scheduler = None
+        self.phishing_detector = None
         self.valentine_lvl_db = plyvel.DB('valentine', create_if_missing=True)
+
+    async def get_phishing_detector(self):
+        self.phishing_detector = await PhishingDetector()
 
     async def get_scheduler(self):
         if self.config.get("sqlitecloud-schedule"): self.scheduler = await Schedule(self.config["sqlitecloud-schedule"], True)
@@ -99,6 +104,7 @@ async def on_ready():
 async def main():
     async with bot:
         await bot.get_scheduler()
+        await bot.get_phishing_detector()
         await bot.load_extensions()
         await bot.start(bot.token)
 

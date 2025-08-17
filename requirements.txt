@@ -1,4 +1,4 @@
-discord.py
+discord.py @ git+https://github.com/Rapptz/discord.py
 discord.py[voice]
 pillow
 pet-pet-gif
@@ -19,3 +19,4 @@ ffmpeg-python
 discord-py-paginators @ git+https://github.com/Soheab/discord-py-paginators
 dateparser
 soundcloud-lib
+aiosqlite
