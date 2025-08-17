@@ -262,17 +262,17 @@ class CreateClubModal(discord.ui.Modal, title='Create Club'):
         traceback.print_exception(type(error), error, error.__traceback__)
 
 class JoinClubButton(discord.ui.Button):
-    def __init__(self, club_obj: 'club', club: ClubData, *, style = discord.ButtonStyle.secondary, label = None, disabled = False, custom_id = None, url = None, emoji = None, row = None, sku_id = None, id = None):
+    def __init__(self, club_obj: 'club', club: ClubData, *, style = discord.ButtonStyle.secondary, label = None, disabled = False, custom_id = None, url = None, emoji = None, sku_id = None, id = None):
         self.club_obj = club_obj
         self.club = club
-        super().__init__(style=style, label=label, disabled=disabled, custom_id=custom_id, url=url, emoji=emoji, row=row, sku_id=sku_id, id=id)
+        super().__init__(style=style, label=label, disabled=disabled, custom_id=custom_id, url=url, emoji=emoji, sku_id=sku_id, id=id)
 
     async def callback(self, interaction):
         await self.club_obj.join_club(interaction, self.club.leader)
 
 class ClubContainer(discord.ui.Container):
-    def __init__(self, club_obj: 'club', club: ClubData, children = ..., *, accent_colour = None, accent_color = None, spoiler = False, row = None, id = None):
-        super().__init__(accent_colour=accent_colour, accent_color=accent_color, spoiler=spoiler, row=row, id=id)
+    def __init__(self, club_obj: 'club', club: ClubData, children = ..., *, accent_colour = None, accent_color = None, spoiler = False, id = None):
+        super().__init__(accent_colour=accent_colour, accent_color=accent_color, spoiler=spoiler, id=id)
         
         self.add_item(discord.ui.MediaGallery([discord.MediaGalleryItem(club.banner_url)]))
         self.add_item(discord.ui.Section(accessory=discord.ui.Thumbnail(club.icon_url)).add_item(discord.ui.TextDisplay(f"# {club.name}\n-# Led by {club.leader.name}\n{club.description}")))
