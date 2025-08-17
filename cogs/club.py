@@ -274,7 +274,7 @@ class ClubContainer(discord.ui.Container):
     def __init__(self, club_obj: 'club', club: ClubData, children = ..., *, accent_colour = None, accent_color = None, spoiler = False, id = None):
         super().__init__(accent_colour=accent_colour, accent_color=accent_color, spoiler=spoiler, id=id)
         
-        self.add_item(discord.ui.MediaGallery([discord.MediaGalleryItem(club.banner_url)]))
+        self.add_item(discord.ui.MediaGallery(discord.MediaGalleryItem(club.banner_url)))
         self.add_item(discord.ui.Section(accessory=discord.ui.Thumbnail(club.icon_url)).add_item(discord.ui.TextDisplay(f"# {club.name}\n-# Led by {club.leader.name}\n{club.description}")))
         self.add_item(discord.ui.Separator())
         self.add_item(discord.ui.Section(accessory=JoinClubButton(club_obj=club_obj, club=club, label="Join Club", style=discord.ButtonStyle.success)).add_item(discord.ui.TextDisplay(f"- Member Count: {len(club.users)}")))
