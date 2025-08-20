@@ -21,11 +21,12 @@ class yourenobody(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.guildid = 1198291214672347308
+        self.channelid = 1245885709240373309
         
     async def getEmoji(self, bool: bool) -> str:
         if bool: return "✅"
         else: return "❌"
-        
+
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.User):
         if member.guild.id != self.guildid:
@@ -61,7 +62,7 @@ class yourenobody(commands.Cog):
         if totalScore >= 50: extraMsg = f"This guy (<@{member.id}>) is looking real suspicious, no? <@&1211135690503495740> <@&1220416159573213264>"
 
         if totalScore >= 50:
-            channel=discord.utils.get(member.guild.channels, id=1311950927527149568)
+            channel=discord.utils.get(member.guild.channels, id=self.channelid)
             embed=discord.Embed(title="", description=f"# User Suspicious Score Summary\n{summaryString}\n### Total: {totalScore}\n{extraMsg}", color=0x4034eb)
             await channel.send(content=extraMsg, embed=embed)
 
