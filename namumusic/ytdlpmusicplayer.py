@@ -70,6 +70,7 @@ class YTDLPMusicPlayer():
         scale_factor = 6000 / (audio.total_rms / len(audio.packets))
         packet = audioop.mul(packet, 2, scale_factor)
         
+        # this entire thing manages the playbackstate of the audio
         if audio.metadata.length and self.crossfade:
             current_time = audio.get_position()
             time_left = audio.metadata.length - current_time
@@ -85,6 +86,7 @@ class YTDLPMusicPlayer():
                 audio.playback_state = PlaybackState.TRANSITIONING
             
             else: audio.playback_state = PlaybackState.PLAYING
+        else: audio.playback_state = PlaybackState.PLAYING
 
         # set overall volume
         packet = audioop.mul(packet, 2, self.volume)
@@ -136,7 +138,7 @@ class YTDLPMusicPlayer():
     async def play_next_song(self, force=True) -> YTDLPAudio:
         next_song = self.get_next_song()
         if not next_song: return None
-        if force:
+        if force and self.current_song.playback_state != PlaybackState.FINISHED:
             try:
                 self.current_song.clean_up()
                 self.mixer.remove_audio_source("music", self.current_song)

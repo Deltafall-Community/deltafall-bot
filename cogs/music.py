@@ -41,7 +41,7 @@ class music(commands.Cog):
         match audio.playback_state:
             case PlaybackState.TRANSITIONING:
                 embed = discord.Embed(description=f'## 🎵 Playing now\nTrasitioning to playing `{metadata.title} - {metadata.author}` now.')
-            case PlaybackState.FINISHED:
+            case PlaybackState.PLAYING:
                 embed = discord.Embed(description=f'## 🎵 Playing now\n`{metadata.title} - {metadata.author}` is playing now.')
         await player.extras.get("channel").send(embed=embed)
 
@@ -52,7 +52,7 @@ class music(commands.Cog):
                 case PlaybackState.TRANSITIONING:
                     audio = await player.play_next_song(force=False)
                 case PlaybackState.FINISHED:
-                    audio = await player.play_next_song(force=True)
+                    audio = await player.play_next_song()
 
     @group.command(name="play", description="song name or the link")
     async def music(self, interaction: discord.Interaction, search: Optional[str], file: Optional[discord.Attachment]):
@@ -110,14 +110,19 @@ class music(commands.Cog):
         await interaction.response.send_message(embed=embed)
 
     @group.command(name="transition", description="adjust the transition of the song")
-    async def transition(self, interaction: discord.Interaction, duration: float, strength: Optional[float]):
+    @app_commands.choices(enabled=[
+        app_commands.Choice(name="Yes", value=1),
+        app_commands.Choice(name="No", value=0)])
+    async def transition(self, interaction: discord.Interaction, enabled: app_commands.Choice[int], duration: Optional[float], strength: Optional[float]):
         vc = interaction.guild.voice_client
         player = self.get_guild_player(vc)
-        player.crossfade_length = min(max(2.0, duration), 12.0)
+        player.crossfade = bool(enabled.value)
+        if duration:
+            player.crossfade_length = min(max(2.0, duration), 12.0)
         if strength:
             strength = min(max(0.1, strength), 9.0)
             player.crossfade_strength = strength
-        embed = discord.Embed(description=f"## Transition Set\nDuration: {duration}\nStrength: {strength}")
+        embed = discord.Embed(description=f"## Transition Set\nEnabled: {player.crossfade}\nDuration: {player.crossfade_length}\nStrength: {player.crossfade_strength}")
         await interaction.response.send_message(embed=embed)
 
     @group.command(name="skip", description="skip song")
