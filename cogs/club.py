@@ -260,6 +260,31 @@ class CreateClubModal(discord.ui.Modal, title='Create Club'):
         await interaction.response.send_message('Something went wrong.', ephemeral=True)
         traceback.print_exception(type(error), error, error.__traceback__)
 
+class ClubAnnounceModal(discord.ui.Modal, title='Club Announce'):
+    message = discord.ui.TextInput(
+        label='Message',
+        style=discord.TextStyle.long,
+        placeholder='The quick brown fox jumps over the lazy dog...',
+        required=True,
+        max_length=1000
+    )
+
+    def __init__(self, connection):
+        super().__init__()
+        self.connection = connection
+
+    async def on_submit(self, interaction: discord.Interaction):
+        club = await get_club(interaction, self.connection, interaction.user)
+        if club:
+            announce_str = f"## `{club.name}` Club Announcement:\n{self.message.value}\n\n-# "
+            for user in club.users: announce_str += user.mention
+            return await interaction.response.send_message(announce_str, allowed_mentions=discord.AllowedMentions(users=club.users, everyone=False, roles=False))
+        return await interaction.followup.send("You are not a leader of a club.", ephemeral=True, allowed_mentions=discord.AllowedMentions.none())
+
+    async def on_error(self, interaction: discord.Interaction, error: Exception) -> None:
+        await interaction.response.send_message('Something went wrong.', ephemeral=True)
+        traceback.print_exception(type(error), error, error.__traceback__)
+
 class JoinClubButton(discord.ui.Button):
     def __init__(self, club_obj: 'club', club: ClubData, *, style = discord.ButtonStyle.secondary, label = None, disabled = False, custom_id = None, url = None, emoji = None, sku_id = None, id = None):
         self.club_obj = club_obj
@@ -379,6 +404,11 @@ class club(commands.Cog):
     async def ping(self, interaction: discord.Interaction):
         return await self.club_ping(interaction, message=None)
 
+    @group.command(name="announce", description="announces a club message")
+    async def announce(self, interaction: discord.Interaction):
+        club_announce_modal = ClubAnnounceModal(await self.get_connection())
+        await interaction.response.send_modal(club_announce_modal)
+
     @group.command(name="joined_list", description="list clubs you have joined")
     async def joined_list(self, interaction: discord.Interaction):
         await interaction.response.defer()
@@ -431,11 +461,11 @@ class club(commands.Cog):
         await interaction.response.defer(ephemeral=True)
         club = await get_club(interaction, await self.get_connection(), interaction.user)
         if club:
-            ping_str = f"## `{club.name}` Club Ping:\n"
+            ping_str = f"## `{club.name}` Club Ping:\n-# "
             for user in club.users: ping_str += user.mention
             if not message: await interaction.channel.send(ping_str)
             else: await message.reply(ping_str)
-            return await interaction.followup.send("Sent Club Ping.", ephemeral=False)
+            return await interaction.followup.send("Sent Club Ping.")
         return await interaction.followup.send("You are not a leader of a club.", ephemeral=True, allowed_mentions=discord.AllowedMentions.none())
 
 async def setup(bot):
