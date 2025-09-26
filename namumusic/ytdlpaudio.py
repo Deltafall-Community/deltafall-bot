@@ -167,8 +167,11 @@ class YTDLPAudio(discord.AudioSource):
                 pcm = audioop.tomono(pcm, 2, 0.5, 0.5) 
                 rms = audioop.rms(pcm, 2)
                 self.packets.append(pcm)
-                if rms < 500: end_silence=len(self.packets)
-                else: end_silence=None
+                if rms < 500:
+                    if not end_silence:
+                        end_silence=len(self.packets)
+                else:
+                    end_silence=None
                 self.total_rms += rms
         if self.packets:
             if end_silence: self.packets=self.packets[:end_silence]
