@@ -158,6 +158,7 @@ class YTDLPAudio(discord.AudioSource):
         self.ffmpeg_process.stdin.close()
     def read_ffmpeg(self) -> None:
         end_silence=None
+        start_silence=None
         while True:
             pcm = self.ffmpeg_process.stdout.read(3840)
             if not pcm: break
@@ -170,11 +171,14 @@ class YTDLPAudio(discord.AudioSource):
                 if rms < 500:
                     if not end_silence:
                         end_silence=len(self.packets)
+                    if not start_silence:
+                        start_silence=len(self.packets)
                 else:
                     end_silence=None
                 self.total_rms += rms
         if self.packets:
             if end_silence: self.packets=self.packets[:end_silence]
+            if start_silence: self.packets=self.packets[start_silence:]
             self.metadata.length = len(self.packets)*0.02
             self.status = Status.FINISHED
         else:
