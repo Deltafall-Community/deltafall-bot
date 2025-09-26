@@ -64,7 +64,6 @@ def db_get_club_users(connection, table, leader: discord.User):
     """, (leader.id,)).fetchall()
 async def get_club_users(interaction: discord.Interaction, connection, leader: discord.User):
     table = interaction.guild.id
-    discord_users = []
     event_loop = asyncio.get_running_loop()
     users = await event_loop.run_in_executor(None, db_get_club_users, connection, table, leader)    
     return [u for user in users if (u := interaction.guild.get_member(user[0])) is not None]
@@ -215,7 +214,7 @@ class EditClubModal(discord.ui.Modal, title='Edit Club'):
     async def on_submit(self, interaction: discord.Interaction):
         club = await edit_club(interaction, self.connection, interaction.user, self.description.value, self.icon_url.value, self.banner_url.value)
         if club: return await interaction.response.send_message(view=ClubView(club_obj=self.club_obj, club=club, timeout=None))
-        return await interaction.response.send_message(f"You are not a leader of a club.", ephemeral=False, allowed_mentions=discord.AllowedMentions.none())
+        return await interaction.response.send_message("You are not a leader of a club.", ephemeral=False, allowed_mentions=discord.AllowedMentions.none())
 
     async def on_error(self, interaction: discord.Interaction, error: Exception) -> None:
         await interaction.response.send_message('Something went wrong.', ephemeral=True)
@@ -270,14 +269,38 @@ class JoinClubButton(discord.ui.Button):
     async def callback(self, interaction):
         await self.club_obj.join_club(interaction, self.club.leader)
 
+class ListClubMemberButton(discord.ui.Button):
+    def __init__(self, club: ClubData, *, style = discord.ButtonStyle.secondary, label = None, disabled = False, custom_id = None, url = None, emoji = None, sku_id = None, id = None):
+        self.club = club
+        super().__init__(style=style, label=label, disabled=disabled, custom_id=custom_id, url=url, emoji=emoji, sku_id=sku_id, id=id)
+
+    async def callback(self, interaction):
+        user_list_embeds=[discord.Embed(description="## Member(s)", color=discord.Color.from_rgb(255,255,255))]
+        current_page=0
+        for user, index in zip(self.club.users, range(len(self.club.users))):
+            if user_list_embeds[current_page].description.count('\n') > 9: current_page+=1
+            if len(user_list_embeds) < current_page+1: user_list_embeds.append(discord.Embed(description="", color=discord.Color.from_rgb(255,255,255)))
+            user_list_embeds[current_page].description += f"\n**#{index+1}** - {user.mention}"
+        custom_buttons = {
+            "FIRST": PaginatorButton(label="", position=0),
+            "LEFT": PaginatorButton(label="Back", position=1),
+            "PAGE_INDICATOR": PaginatorButton(label="Page N/A / N/A", position=2, disabled=False),
+            "RIGHT": PaginatorButton(label="Next", position=3),
+            "LAST": PaginatorButton(label="", position=4),
+            "STOP": None
+        }
+        paginator = ButtonPaginator(user_list_embeds, author_id=interaction.user.id, buttons=custom_buttons)
+        return await paginator.send(interaction, override_page_kwargs=True, ephemeral=True)
+
 class ClubContainer(discord.ui.Container):
     def __init__(self, club_obj: 'club', club: ClubData, children = ..., *, accent_colour = None, accent_color = None, spoiler = False, id = None):
         super().__init__(accent_colour=accent_colour, accent_color=accent_color, spoiler=spoiler, id=id)
         
         self.add_item(discord.ui.MediaGallery(discord.MediaGalleryItem(club.banner_url)))
-        self.add_item(discord.ui.Section(accessory=discord.ui.Thumbnail(club.icon_url)).add_item(discord.ui.TextDisplay(f"# {club.name}\n-# Led by {club.leader.name}\n{club.description}")))
+        self.add_item(discord.ui.Section(accessory=discord.ui.Thumbnail(club.icon_url)).add_item(discord.ui.TextDisplay(f"# {club.name}\n{club.description}")))
         self.add_item(discord.ui.Separator())
-        self.add_item(discord.ui.Section(accessory=JoinClubButton(club_obj=club_obj, club=club, label="Join Club", style=discord.ButtonStyle.success)).add_item(discord.ui.TextDisplay(f"- Member Count: {len(club.users)}")))
+        self.add_item(discord.ui.Section(accessory=ListClubMemberButton(club=club, label="List Member(s)", style=discord.ButtonStyle.primary)).add_item(discord.ui.TextDisplay(f"Member Count: {len(club.users)}")))
+        self.add_item(discord.ui.Section(accessory=JoinClubButton(club_obj=club_obj, club=club, label="Join Club", style=discord.ButtonStyle.success)).add_item(discord.ui.TextDisplay(f"Led By {club.leader.mention}")))
 
 class ClubView(discord.ui.LayoutView):
     def __init__(self, club_obj: 'club', club: ClubData, *, timeout = 180):
@@ -323,8 +346,8 @@ class club(commands.Cog):
     async def disbandclub(self, interaction: discord.Interaction):
         await interaction.response.defer()
         delete = await delete_club(interaction, await self.get_connection(), interaction.user)
-        if delete: return await interaction.followup.send(f"Your club has been successfully disbanded, All of your club members are now kicked out.", ephemeral=False, allowed_mentions=discord.AllowedMentions.none())
-        return await interaction.followup.send(f"You are not a leader of a club.", ephemeral=False, allowed_mentions=discord.AllowedMentions.none())
+        if delete: return await interaction.followup.send("Your club has been successfully disbanded, All of your club members are now kicked out.", ephemeral=False, allowed_mentions=discord.AllowedMentions.none())
+        return await interaction.followup.send("You are not a leader of a club.", ephemeral=False, allowed_mentions=discord.AllowedMentions.none())
 
     @group.command(name="join", description="joins a club")
     async def joinclub(self, interaction: discord.Interaction, leader: discord.User):
@@ -349,7 +372,7 @@ class club(commands.Cog):
     async def info(self, interaction: discord.Interaction, leader: discord.User):
         await interaction.response.defer()
         club = await get_club(interaction, await self.get_connection(), leader)
-        if club: return await interaction.followup.send(view=ClubView(club_obj=self, club=club, timeout=None))
+        if club: return await interaction.followup.send(view=ClubView(club_obj=self, club=club, timeout=None), allowed_mentions=discord.AllowedMentions.none())
         return await interaction.followup.send(f"No club was owned by {leader.mention}", ephemeral=False, allowed_mentions=discord.AllowedMentions.none())
 
     @group.command(name="ping", description="ping club members")
@@ -360,7 +383,7 @@ class club(commands.Cog):
     async def joined_list(self, interaction: discord.Interaction):
         await interaction.response.defer()
         clubs = await get_user_clubs(interaction, await self.get_connection(), interaction.user)
-        clubs_embeds=[discord.Embed(description=f"## List of clubs you've joined", color=discord.Color.from_rgb(255,255,255))]
+        clubs_embeds=[discord.Embed(description="## List of clubs you've joined", color=discord.Color.from_rgb(255,255,255))]
         current_page=0
         if clubs:
             for club in clubs:
@@ -384,7 +407,7 @@ class club(commands.Cog):
     async def list_club(self, interaction: discord.Interaction):
         await interaction.response.defer()
         clubs = await get_guild_clubs(interaction, await self.get_connection())
-        clubs_embeds=[discord.Embed(description=f"## Clubs", color=discord.Color.from_rgb(255,255,255))]
+        clubs_embeds=[discord.Embed(description="## Clubs", color=discord.Color.from_rgb(255,255,255))]
         current_page=0
         if clubs:
             for club in clubs:
@@ -402,7 +425,7 @@ class club(commands.Cog):
             "STOP": None
         }
         paginator = ButtonPaginator(clubs_embeds, author_id=interaction.user.id, buttons=custom_buttons)
-        return await paginator.send(interaction)
+        return await paginator.send(interaction, ephemeral=True)
 
     async def club_ping(self, interaction: discord.Interaction, message: discord.Message):
         await interaction.response.defer(ephemeral=True)
@@ -413,7 +436,7 @@ class club(commands.Cog):
             if not message: await interaction.channel.send(ping_str)
             else: await message.reply(ping_str)
             return await interaction.followup.send("Sent Club Ping.", ephemeral=False)
-        return await interaction.followup.send(f"You are not a leader of a club.", ephemeral=True, allowed_mentions=discord.AllowedMentions.none())
+        return await interaction.followup.send("You are not a leader of a club.", ephemeral=True, allowed_mentions=discord.AllowedMentions.none())
 
 async def setup(bot):
     await bot.add_cog(club(bot))
