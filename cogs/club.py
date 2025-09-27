@@ -17,14 +17,48 @@ class ClubError(Enum):
     ALREADY_JOINED = 1
     ALREADY_OWNED = 2
 
+paginator_buttons = {
+    "FIRST": PaginatorButton(label="", position=0),
+    "LEFT": PaginatorButton(label="Back", position=1),
+    "PAGE_INDICATOR": PaginatorButton(label="Page N/A / N/A", position=2, disabled=False),
+    "RIGHT": PaginatorButton(label="Next", position=3),
+    "LAST": PaginatorButton(label="", position=4),
+    "STOP": None
+}
+
 @dataclass
 class ClubData:
     name: str
-    leader: discord.User
+    leader: Optional[discord.User]
     description: str = None
     icon_url: str = "https://deltafall-community.github.io/resources/deltafall-logo-old.png"
     banner_url: str = "https://deltafall-community.github.io/resources/titieless_splash_screen.png"
     users: List[discord.User] = field(default_factory=list)
+
+class DummyUser(discord.User):
+    def __init__(self, id, name, discriminator, bot=False, avatar=None):
+        mock_state = type('MockState', (object,), {'_get_websocket': lambda: None, '_get_guild': lambda x: None})()
+        mock_data = {
+            'id': str(id),
+            'username': name,
+            'discriminator': discriminator,
+            'bot': bot,
+            'avatar': avatar,
+        }
+        super().__init__(state=mock_state, data=mock_data)
+
+async def get_member(interaction: discord.Interaction, id: int):
+    # look in the cache first, if member doesn't exist try fetching it.
+    member=interaction.guild.get_member(id)
+    if not member:
+        member = await interaction.client.fetch_user(id)
+    if not member:
+        return DummyUser(id, None, "0001")
+    return member
+
+async def populate_club(interaction: discord.Interaction, club: tuple, connection):
+    leader = await get_member(interaction, club[1])
+    return ClubData(club[0], leader, club[2], club[3], club[4], await get_club_users(interaction, connection, leader))
 
 def db_get_table_clubs(connection, table):
     cur = connection.cursor()
@@ -36,13 +70,7 @@ async def get_guild_clubs(interaction: discord.Interaction, connection):
     table = interaction.guild.id
     event_loop = asyncio.get_running_loop()
     clubs = await event_loop.run_in_executor(None, db_get_table_clubs, connection, table)    
-    guild_clubs=[]
-    if clubs:
-        for club in clubs:
-            leader=interaction.guild.get_member(club[1])
-            if not leader: return
-            guild_clubs.append(ClubData(club[0], leader, club[2], club[3], club[4], await get_club_users(interaction, connection, leader)))
-        return guild_clubs
+    return [await populate_club(interaction, club, connection) for club in clubs]
 
 def db_get_club(connection, table, leader: discord.User):
     cur = connection.cursor()
@@ -66,7 +94,7 @@ async def get_club_users(interaction: discord.Interaction, connection, leader: d
     table = interaction.guild.id
     event_loop = asyncio.get_running_loop()
     users = await event_loop.run_in_executor(None, db_get_club_users, connection, table, leader)    
-    return [u for user in users if (u := interaction.guild.get_member(user[0])) is not None]
+    return [await get_member(interaction, user[0]) for user in users]
 
 def db_get_user_clubs(connection, table, user: discord.User):
     cur = connection.cursor()
@@ -276,8 +304,11 @@ class ClubAnnounceModal(discord.ui.Modal, title='Club Announce'):
     async def on_submit(self, interaction: discord.Interaction):
         club = await get_club(interaction, self.connection, interaction.user)
         if club:
-            announce_str = f"## `{club.name}` Club Announcement:\n{self.message.value}\n\n-# "
-            for user in club.users: announce_str += user.mention
+            announce_str = f"## `{club.name}` Club Announcement:\n{self.message.value}"
+            vaild_members = [user for user in club.users if user.name]
+            if vaild_members:
+                announce_str += "\n\n-# "
+            for user in vaild_members: announce_str += user.mention
             return await interaction.response.send_message(announce_str, allowed_mentions=discord.AllowedMentions(users=club.users, everyone=False, roles=False))
         return await interaction.followup.send("You are not a leader of a club.", ephemeral=True, allowed_mentions=discord.AllowedMentions.none())
 
@@ -286,7 +317,7 @@ class ClubAnnounceModal(discord.ui.Modal, title='Club Announce'):
         traceback.print_exception(type(error), error, error.__traceback__)
 
 class JoinClubButton(discord.ui.Button):
-    def __init__(self, club_obj: 'club', club: ClubData, *, style = discord.ButtonStyle.secondary, label = None, disabled = False, custom_id = None, url = None, emoji = None, sku_id = None, id = None):
+    def __init__(self, club_obj: 'Club', club: ClubData, *, style = discord.ButtonStyle.secondary, label = None, disabled = False, custom_id = None, url = None, emoji = None, sku_id = None, id = None):
         self.club_obj = club_obj
         self.club = club
         super().__init__(style=style, label=label, disabled=disabled, custom_id=custom_id, url=url, emoji=emoji, sku_id=sku_id, id=id)
@@ -305,34 +336,30 @@ class ListClubMemberButton(discord.ui.Button):
         for user, index in zip(self.club.users, range(len(self.club.users))):
             if user_list_embeds[current_page].description.count('\n') > 9: current_page+=1
             if len(user_list_embeds) < current_page+1: user_list_embeds.append(discord.Embed(description="", color=discord.Color.from_rgb(255,255,255)))
-            user_list_embeds[current_page].description += f"\n**#{index+1}** - {user.mention}"
-        custom_buttons = {
-            "FIRST": PaginatorButton(label="", position=0),
-            "LEFT": PaginatorButton(label="Back", position=1),
-            "PAGE_INDICATOR": PaginatorButton(label="Page N/A / N/A", position=2, disabled=False),
-            "RIGHT": PaginatorButton(label="Next", position=3),
-            "LAST": PaginatorButton(label="", position=4),
-            "STOP": None
-        }
-        paginator = ButtonPaginator(user_list_embeds, author_id=interaction.user.id, buttons=custom_buttons)
+            user_list_embeds[current_page].description += f"\n**#{index+1}** - {(lambda s: s.mention if s.name else "*Unknown User*")(user)}"
+        paginator = ButtonPaginator(user_list_embeds, author_id=interaction.user.id, buttons=paginator_buttons)
         return await paginator.send(interaction, override_page_kwargs=True, ephemeral=True)
 
 class ClubContainer(discord.ui.Container):
-    def __init__(self, club_obj: 'club', club: ClubData, children = ..., *, accent_colour = None, accent_color = None, spoiler = False, id = None):
+    def __init__(self, club_obj: 'Club', club: ClubData, children = ..., *, accent_colour = None, accent_color = None, spoiler = False, id = None):
         super().__init__(accent_colour=accent_colour, accent_color=accent_color, spoiler=spoiler, id=id)
         
         self.add_item(discord.ui.MediaGallery(discord.MediaGalleryItem(club.banner_url)))
         self.add_item(discord.ui.Section(accessory=discord.ui.Thumbnail(club.icon_url)).add_item(discord.ui.TextDisplay(f"# {club.name}\n{club.description}")))
-        self.add_item(discord.ui.Separator())
-        self.add_item(discord.ui.Section(accessory=ListClubMemberButton(club=club, label="List Member(s)", style=discord.ButtonStyle.primary)).add_item(discord.ui.TextDisplay(f"Member Count: {len(club.users)}")))
-        self.add_item(discord.ui.Section(accessory=JoinClubButton(club_obj=club_obj, club=club, label="Join Club", style=discord.ButtonStyle.success)).add_item(discord.ui.TextDisplay(f"Led By {club.leader.mention}")))
+        self.add_item(discord.ui.Separator(spacing=discord.SeparatorSpacing.large))
+        vaild_members = [user for user in club.users if user.name]
+        extras = ""
+        if len(vaild_members) != len(club.users):
+            extras += f"\n-# Unknown Member: {len(club.users) - len(vaild_members)}"
+        self.add_item(discord.ui.Section(accessory=ListClubMemberButton(club=club, label="List Member(s)", style=discord.ButtonStyle.primary)).add_item(discord.ui.TextDisplay(f"Member: {len(vaild_members)}" + extras)))
+        self.add_item(discord.ui.Section(accessory=JoinClubButton(club_obj=club_obj, club=club, label="Join Club", style=discord.ButtonStyle.success)).add_item(discord.ui.TextDisplay(f"Led By {(lambda s: s.mention if s.name else "*Unknown User*")(club.leader)}")))
 
 class ClubView(discord.ui.LayoutView):
-    def __init__(self, club_obj: 'club', club: ClubData, *, timeout = 180):
+    def __init__(self, club_obj: 'Club', club: ClubData, *, timeout = 180):
         super().__init__(timeout=timeout)
         self.add_item(ClubContainer(club_obj=club_obj, club=club))
 
-class club(commands.Cog):
+class Club(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.club_ping_ctx_menu = app_commands.ContextMenu(
@@ -411,27 +438,19 @@ class club(commands.Cog):
 
     @group.command(name="joined_list", description="list clubs you have joined")
     async def joined_list(self, interaction: discord.Interaction):
-        await interaction.response.defer()
+        await interaction.response.defer(ephemeral=True)
         clubs = await get_user_clubs(interaction, await self.get_connection(), interaction.user)
         clubs_embeds=[discord.Embed(description="## List of clubs you've joined", color=discord.Color.from_rgb(255,255,255))]
         current_page=0
         if clubs:
             for club in clubs:
                 if clubs_embeds[current_page].description.count('\n') > 9: current_page+=1
-                if len(clubs_embeds) < current_page+1: clubs_embeds.append(discord.Embed(description=f"", color=discord.Color.from_rgb(255,255,255)))
+                if len(clubs_embeds) < current_page+1: clubs_embeds.append(discord.Embed(description="", color=discord.Color.from_rgb(255,255,255)))
                 club_desc = (lambda s: s or "*No description.*")(club.description)
-                club_leader_mention = (lambda s: s or "*Unknown User*")(club.leader.mention)
+                club_leader_mention = (lambda s: s.mention if s.name else "*Unknown User*")(club.leader)
                 clubs_embeds[current_page].description += f'\n- **`{club.name}`** - **{textwrap.shorten((club_desc+" ")[:club_desc.find("\n")], 60)}**\n-# ↳ Led by {club_leader_mention} • **Member #{club.users.index(interaction.user)+1}**\n'
-        custom_buttons = {
-            "FIRST": PaginatorButton(label="", position=0),
-            "LEFT": PaginatorButton(label="Back", position=1),
-            "PAGE_INDICATOR": PaginatorButton(label="Page N/A / N/A", position=2, disabled=False),
-            "RIGHT": PaginatorButton(label="Next", position=3),
-            "LAST": PaginatorButton(label="", position=4),
-            "STOP": None
-        }
-        paginator = ButtonPaginator(clubs_embeds, author_id=interaction.user.id, buttons=custom_buttons)
-        return await paginator.send(interaction)
+        paginator = ButtonPaginator(clubs_embeds, author_id=interaction.user.id, buttons=paginator_buttons)
+        return await paginator.send(interaction, override_page_kwargs=True, ephemeral=True)
 
     @group.command(name="list", description="list clubs in the server")
     async def list_club(self, interaction: discord.Interaction):
@@ -442,31 +461,26 @@ class club(commands.Cog):
         if clubs:
             for club in clubs:
                 if clubs_embeds[current_page].description.count('\n') > 9: current_page+=1
-                if len(clubs_embeds) < current_page+1: clubs_embeds.append(discord.Embed(description=f"", color=discord.Color.from_rgb(255,255,255)))
+                if len(clubs_embeds) < current_page+1: clubs_embeds.append(discord.Embed(description="", color=discord.Color.from_rgb(255,255,255)))
                 club_desc = (lambda s: s or "*No description.*")(club.description)
-                club_leader_mention = (lambda s: s or "*Unknown User*")(club.leader.mention)
+                club_leader_mention = (lambda s: s.mention if s.name else "*Unknown User*")(club.leader)
                 clubs_embeds[current_page].description += f'\n- **`{club.name}`** - **{textwrap.shorten((club_desc+" ")[:club_desc.find("\n")], 60)}**\n-# ↳ Led by {club_leader_mention} • **Member Count: {len(club.users)}**\n'
-        custom_buttons = {
-            "FIRST": PaginatorButton(label="", position=0),
-            "LEFT": PaginatorButton(label="Back", position=1),
-            "PAGE_INDICATOR": PaginatorButton(label="Page N/A / N/A", position=2, disabled=False),
-            "RIGHT": PaginatorButton(label="Next", position=3),
-            "LAST": PaginatorButton(label="", position=4),
-            "STOP": None
-        }
-        paginator = ButtonPaginator(clubs_embeds, author_id=interaction.user.id, buttons=custom_buttons)
-        return await paginator.send(interaction, ephemeral=True)
+        paginator = ButtonPaginator(clubs_embeds, author_id=interaction.user.id, buttons=paginator_buttons)
+        return await paginator.send(interaction)
 
     async def club_ping(self, interaction: discord.Interaction, message: discord.Message):
         await interaction.response.defer(ephemeral=True)
         club = await get_club(interaction, await self.get_connection(), interaction.user)
         if club:
-            ping_str = f"## `{club.name}` Club Ping:\n-# "
-            for user in club.users: ping_str += user.mention
+            ping_str = f"## `{club.name}` Club Ping:"
+            vaild_members = [user for user in club.users if user.name]
+            if vaild_members:
+                ping_str += "\n-# "
+            for user in vaild_members: ping_str += user.mention
             if not message: await interaction.channel.send(ping_str)
             else: await message.reply(ping_str)
             return await interaction.followup.send("Sent Club Ping.")
         return await interaction.followup.send("You are not a leader of a club.", ephemeral=True, allowed_mentions=discord.AllowedMentions.none())
 
 async def setup(bot):
-    await bot.add_cog(club(bot))
+    await bot.add_cog(Club(bot))
