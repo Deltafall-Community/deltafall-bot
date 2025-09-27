@@ -81,7 +81,8 @@ async def get_club(interaction: discord.Interaction, connection, leader: discord
     table = interaction.guild.id
     event_loop = asyncio.get_running_loop()
     club = await event_loop.run_in_executor(None, db_get_club, connection, table, leader)    
-    if club: return ClubData(club[0], interaction.guild.get_member(club[1]), club[2], club[3], club[4], await get_club_users(interaction, connection, leader))
+    if club:
+        return ClubData(club[0], interaction.guild.get_member(club[1]), club[2], club[3], club[4], await get_club_users(interaction, connection, leader))
 
 def db_get_club_users(connection, table, leader: discord.User):
     cur = connection.cursor()
@@ -105,7 +106,8 @@ async def get_user_clubs(interaction: discord.Interaction,connection, user: disc
     table = interaction.guild.id
     event_loop = asyncio.get_running_loop()
     clubs = await event_loop.run_in_executor(None, db_get_user_clubs, connection, table, user)
-    if clubs: return [await get_club(interaction, connection, interaction.guild.get_member(club[1])) for club in clubs]
+    if clubs:
+        return [await get_club(interaction, connection, interaction.guild.get_member(club[1])) for club in clubs]
 
 def db_join_club(connection, table, user: discord.User, leader: discord.User):
     cur = connection.cursor()
@@ -123,7 +125,8 @@ async def join_club(interaction: discord.Interaction, connection, user: discord.
             if club.leader == leader:
                 joined_club=True
                 break
-    if joined_club: return ClubError.ALREADY_JOINED
+    if joined_club:
+        return ClubError.ALREADY_JOINED
     
     club = await get_club(interaction, connection, leader)
     table = interaction.guild.id
@@ -142,14 +145,18 @@ def db_create_club(connection, table, club):
     connection.commit()
 async def create_club(interaction: discord.Interaction, connection, leader: discord.User, name: str, desc: str = None, icon_url: str = None, banner_url: str = None):
     owned_club = await get_club(interaction, connection, leader)
-    if owned_club: return ClubError.ALREADY_OWNED
+    if owned_club:
+        return ClubError.ALREADY_OWNED
     
     table = interaction.guild.id
     event_loop = asyncio.get_running_loop()
     club = ClubData(name, leader)
-    if desc: club.description = desc
-    if icon_url: club.icon_url = icon_url
-    if banner_url: club.banner_url = banner_url
+    if desc:
+        club.description = desc
+    if icon_url:
+        club.icon_url = icon_url
+    if banner_url:
+        club.banner_url = banner_url
     await event_loop.run_in_executor(None, db_create_club, connection, table, club)
 
     return club
@@ -164,9 +171,12 @@ async def edit_club(interaction: discord.Interaction, connection, leader: discor
     club = await get_club(interaction, connection, leader)
     if club:
         table = interaction.guild.id
-        if desc: club.description = desc
-        if icon_url: club.icon_url = icon_url
-        if banner_url: club.banner_url = banner_url
+        if desc:
+            club.description = desc
+        if icon_url:
+            club.icon_url = icon_url
+        if banner_url:
+            club.banner_url = banner_url
         event_loop = asyncio.get_running_loop()
         await event_loop.run_in_executor(None, db_edit_club, connection, table, club)        
 
@@ -183,7 +193,8 @@ def db_delete_club(connection, table, leader: discord.User):
     connection.commit()
 async def delete_club(interaction: discord.Interaction, connection, leader: discord.User):
     owned_club = await get_club(interaction, connection, leader)
-    if not owned_club: return None
+    if not owned_club:
+        return None
 
     table = interaction.guild.id
     event_loop = asyncio.get_running_loop()
@@ -205,7 +216,8 @@ async def leave_club(interaction: discord.Interaction, connection, user: discord
             if club.leader == leader:
                 is_in_leader_club=True
                 break
-    if not is_in_leader_club: return None
+    if not is_in_leader_club:
+        return None
 
     table = interaction.guild.id
     event_loop = asyncio.get_running_loop()
@@ -214,91 +226,107 @@ async def leave_club(interaction: discord.Interaction, connection, user: discord
     return True
 
 class EditClubModal(discord.ui.Modal, title='Edit Club'):
-    description = discord.ui.TextInput(
-        label='Description',
-        style=discord.TextStyle.long,
-        placeholder='The club description...',
-        required=False,
-        max_length=300,
-    )
-
-    icon_url = discord.ui.TextInput(
-        label='Icon',
-        placeholder='Enter the URL for the icon image... (e.g. https://i.imgur.com/0bXMnbm.jpeg)',
-        required=False,
-    )
-    banner_url = discord.ui.TextInput(
-        label='Banner',
-        placeholder='Enter the URL for the banner image... (e.g. https://i.imgur.com/2VzYLjT.png)',
-        required=False,
-    )
-
-    def __init__(self, connection, club_obj):
+    def __init__(self, connection, club_obj: 'Club', club: ClubData):
         super().__init__()
         self.connection = connection
         self.club_obj = club_obj
+        self.club = club
+
+        self.description = discord.ui.TextInput(
+            label='Description',
+            style=discord.TextStyle.long,
+            placeholder='The club description...',
+            required=False,
+            max_length=300,
+            default=self.club.description
+        )
+        self.add_item(self.description)
+
+        self.icon_url = discord.ui.TextInput(
+            label='Icon',
+            placeholder='Enter the URL for the icon image... (e.g. https://i.imgur.com/0bXMnbm.jpeg)',
+            required=False,
+            default=self.club.icon_url
+        )
+        self.add_item(self.icon_url)
+    
+        self.banner_url = discord.ui.TextInput(
+            label='Banner',
+            placeholder='Enter the URL for the banner image... (e.g. https://i.imgur.com/2VzYLjT.png)',
+            required=False,
+            default=self.club.banner_url
+        )
+        self.add_item(self.banner_url)
 
     async def on_submit(self, interaction: discord.Interaction):
         club = await edit_club(interaction, self.connection, interaction.user, self.description.value, self.icon_url.value, self.banner_url.value)
-        if club: return await interaction.response.send_message(view=ClubView(club_obj=self.club_obj, club=club, timeout=None))
-        return await interaction.response.send_message("You are not a leader of a club.", ephemeral=False, allowed_mentions=discord.AllowedMentions.none())
+        if club:
+            return await interaction.response.send_message(view=ClubView(club_obj=self.club_obj, club=club, timeout=None), ephemeral=True, allowed_mentions=discord.AllowedMentions.none())
+        return await interaction.response.send_message("You are not a leader of a club.", ephemeral=True, allowed_mentions=discord.AllowedMentions.none())
 
     async def on_error(self, interaction: discord.Interaction, error: Exception) -> None:
         await interaction.response.send_message('Something went wrong.', ephemeral=True)
         traceback.print_exception(type(error), error, error.__traceback__)
 
 class CreateClubModal(discord.ui.Modal, title='Create Club'):
-    name = discord.ui.TextInput(
-        label='Name',
-        placeholder='Enter club name...',
-        max_length=100
-    )
-
-    description = discord.ui.TextInput(
-        label='Description',
-        style=discord.TextStyle.long,
-        placeholder='The club description...',
-        required=False,
-        max_length=300
-    )
-
-    icon_url = discord.ui.TextInput(
-        label='Icon',
-        placeholder='Enter the URL for the icon image... (e.g. https://i.imgur.com/0bXMnbm.jpeg)',
-        required=False
-    )
-    banner_url = discord.ui.TextInput(
-        label='Banner',
-        placeholder='Enter the URL for the banner image... (e.g. https://i.imgur.com/2VzYLjT.png)',
-        required=False
-    )
-
     def __init__(self, connection, club_obj):
         super().__init__()
         self.connection = connection
         self.club_obj = club_obj
 
+        self.name = discord.ui.TextInput(
+            label='Name',
+            placeholder='Enter club name...',
+            max_length=100
+        )
+        self.add_item(self.name)
+
+        self.description = discord.ui.TextInput(
+            label='Description',
+            style=discord.TextStyle.long,
+            placeholder='The club description...',
+            required=False,
+            max_length=300
+        )
+        self.add_item(self.description)
+
+        self.icon_url = discord.ui.TextInput(
+            label='Icon',
+            placeholder='Enter the URL for the icon image... (e.g. https://i.imgur.com/0bXMnbm.jpeg)',
+            required=False
+        )
+        self.add_item(self.icon_url)
+
+        self.banner_url = discord.ui.TextInput(
+            label='Banner',
+            placeholder='Enter the URL for the banner image... (e.g. https://i.imgur.com/2VzYLjT.png)',
+            required=False
+        )
+        self.add_item(self.banner_url)
+
     async def on_submit(self, interaction: discord.Interaction):
         club = await create_club(interaction, self.connection, interaction.user, self.name.value, self.description.value, self.icon_url.value, self.banner_url.value)
-        if club == ClubError.ALREADY_OWNED: return await interaction.response.send_message(content="You have already owned a club.")
-        await interaction.response.send_message(view=ClubView(club_obj=self.club_obj, club=club, timeout=None))
+        if club == ClubError.ALREADY_OWNED:
+            return await interaction.response.send_message(content="You have already owned a club.")
+        await interaction.response.send_message(view=ClubView(club_obj=self.club_obj, club=club, timeout=None), allowed_mentions=discord.AllowedMentions.none())
 
     async def on_error(self, interaction: discord.Interaction, error: Exception) -> None:
         await interaction.response.send_message('Something went wrong.', ephemeral=True)
         traceback.print_exception(type(error), error, error.__traceback__)
 
 class ClubAnnounceModal(discord.ui.Modal, title='Club Announce'):
-    message = discord.ui.TextInput(
-        label='Message',
-        style=discord.TextStyle.long,
-        placeholder='The quick brown fox jumps over the lazy dog...',
-        required=True,
-        max_length=1000
-    )
-
     def __init__(self, connection):
         super().__init__()
         self.connection = connection
+
+        self.message = discord.ui.TextInput(
+            label='Message',
+            style=discord.TextStyle.long,
+            placeholder='The quick brown fox jumps over the lazy dog...',
+            required=True,
+            max_length=1000
+        )
+        self.add_item(self.message)
 
     async def on_submit(self, interaction: discord.Interaction):
         club = await get_club(interaction, self.connection, interaction.user)
@@ -307,7 +335,8 @@ class ClubAnnounceModal(discord.ui.Modal, title='Club Announce'):
             vaild_members = [user for user in club.users if user.name]
             if vaild_members:
                 announce_str += "\n\n-# "
-            for user in vaild_members: announce_str += user.mention
+            for user in vaild_members:
+                announce_str += user.mention
             return await interaction.response.send_message(announce_str, allowed_mentions=discord.AllowedMentions(users=club.users, everyone=False, roles=False))
         return await interaction.followup.send("You are not a leader of a club.", ephemeral=True, allowed_mentions=discord.AllowedMentions.none())
 
@@ -333,8 +362,10 @@ class ListClubMemberButton(discord.ui.Button):
         user_list_embeds=[discord.Embed(description="## Member(s)", color=discord.Color.from_rgb(255,255,255))]
         current_page=0
         for user, index in zip(self.club.users, range(len(self.club.users))):
-            if user_list_embeds[current_page].description.count('\n') > 9: current_page+=1
-            if len(user_list_embeds) < current_page+1: user_list_embeds.append(discord.Embed(description="", color=discord.Color.from_rgb(255,255,255)))
+            if user_list_embeds[current_page].description.count('\n') > 9:
+                current_page+=1
+            if len(user_list_embeds) < current_page+1:
+                user_list_embeds.append(discord.Embed(description="", color=discord.Color.from_rgb(255,255,255)))
             user_list_embeds[current_page].description += f"\n**#{index+1}** - {(lambda s: s.mention if s.name else "*Unknown User*")(user)}"
         paginator = ButtonPaginator(user_list_embeds, author_id=interaction.user.id, buttons=paginator_buttons)
         return await paginator.send(interaction, override_page_kwargs=True, ephemeral=True)
@@ -344,7 +375,7 @@ class ClubContainer(discord.ui.Container):
         super().__init__(accent_colour=accent_colour, accent_color=accent_color, spoiler=spoiler, id=id)
         
         self.add_item(discord.ui.MediaGallery(discord.MediaGalleryItem(club.banner_url)))
-        self.add_item(discord.ui.Section(accessory=discord.ui.Thumbnail(club.icon_url)).add_item(discord.ui.TextDisplay(f"# {club.name}\n{club.description}")))
+        self.add_item(discord.ui.Section(accessory=discord.ui.Thumbnail(club.icon_url)).add_item(discord.ui.TextDisplay(f"# {club.name}\n{(lambda s: s or "*No description.*")(club.description)}")))
         self.add_item(discord.ui.Separator(spacing=discord.SeparatorSpacing.large))
         vaild_members = [user for user in club.users if user.name]
         extras = ""
@@ -390,14 +421,18 @@ class Club(commands.Cog):
 
     @group.command(name="edit", description="edits your club")
     async def editclub(self, interaction: discord.Interaction):
-        club_modal = EditClubModal(await self.get_connection(), self)
-        await interaction.response.send_modal(club_modal)
+        club = await get_club(interaction, await self.get_connection(), interaction.user)
+        if club:
+            club_modal = EditClubModal(await self.get_connection(), self, club)
+            return await interaction.response.send_modal(club_modal)
+        return await interaction.response.send_message("You are not a leader of a club.", ephemeral=True, allowed_mentions=discord.AllowedMentions.none())
 
     @group.command(name="disband", description="disband/deletes your club")
     async def disbandclub(self, interaction: discord.Interaction):
         await interaction.response.defer()
         delete = await delete_club(interaction, await self.get_connection(), interaction.user)
-        if delete: return await interaction.followup.send("Your club has been successfully disbanded, All of your club members are now kicked out.", ephemeral=False, allowed_mentions=discord.AllowedMentions.none())
+        if delete:
+            return await interaction.followup.send("Your club has been successfully disbanded, All of your club members have been kicked out.", ephemeral=False, allowed_mentions=discord.AllowedMentions.none())
         return await interaction.followup.send("You are not a leader of a club.", ephemeral=False, allowed_mentions=discord.AllowedMentions.none())
 
     @group.command(name="join", description="joins a club")
@@ -406,24 +441,29 @@ class Club(commands.Cog):
 
     async def join_club(self, interaction: discord.Interaction, leader: discord.User):
         await interaction.response.defer(ephemeral=True)
-        if interaction.user == leader: return await interaction.followup.send(content="You can't join your own club, Duh.", ephemeral=True)
+        if interaction.user == leader:
+            return await interaction.followup.send(content="You can't join your own club, Duh.", ephemeral=True)
         club = await join_club(interaction, await self.get_connection(), interaction.user, leader)
-        if club == ClubError.ALREADY_JOINED: return await interaction.followup.send(content=f"You have already joined {leader.mention}'s club.", allowed_mentions=discord.AllowedMentions.none(), ephemeral=True)
-        elif club: return await interaction.followup.send(f"Joined {leader.mention}'s club.", ephemeral=True, allowed_mentions=discord.AllowedMentions.none())
+        if club == ClubError.ALREADY_JOINED:
+            return await interaction.followup.send(content=f"You have already joined {leader.mention}'s club.", allowed_mentions=discord.AllowedMentions.none(), ephemeral=True)
+        elif club:
+            return await interaction.followup.send(f"Joined {leader.mention}'s club.", ephemeral=True, allowed_mentions=discord.AllowedMentions.none())
         return await interaction.followup.send(f"No club was owned by {leader.mention}", ephemeral=True, allowed_mentions=discord.AllowedMentions.none())
 
     @group.command(name="leave", description="leaves a club")
     async def leaveclub(self, interaction: discord.Interaction, leader: discord.User):
         await interaction.response.defer()
         club = await leave_club(interaction, await self.get_connection(), interaction.user, leader)
-        if club: return await interaction.followup.send(f"You have successfully left {leader.mention}'s club.", ephemeral=True, allowed_mentions=discord.AllowedMentions.none())
+        if club:
+            return await interaction.followup.send(f"You have successfully left {leader.mention}'s club.", ephemeral=True, allowed_mentions=discord.AllowedMentions.none())
         return await interaction.followup.send(f"You didn't join {leader.mention}'s club.", ephemeral=True, allowed_mentions=discord.AllowedMentions.none())
 
     @group.command(name="info", description="gets club info")
     async def info(self, interaction: discord.Interaction, leader: discord.User):
         await interaction.response.defer()
         club = await get_club(interaction, await self.get_connection(), leader)
-        if club: return await interaction.followup.send(view=ClubView(club_obj=self, club=club, timeout=None), allowed_mentions=discord.AllowedMentions.none())
+        if club:
+            return await interaction.followup.send(view=ClubView(club_obj=self, club=club, timeout=None), allowed_mentions=discord.AllowedMentions.none())
         return await interaction.followup.send(f"No club was owned by {leader.mention}", ephemeral=False, allowed_mentions=discord.AllowedMentions.none())
 
     @group.command(name="ping", description="ping club members")
@@ -443,8 +483,10 @@ class Club(commands.Cog):
         current_page=0
         if clubs:
             for club in clubs:
-                if clubs_embeds[current_page].description.count('\n') > 9: current_page+=1
-                if len(clubs_embeds) < current_page+1: clubs_embeds.append(discord.Embed(description="", color=discord.Color.from_rgb(255,255,255)))
+                if clubs_embeds[current_page].description.count('\n') > 9:
+                    current_page+=1
+                if len(clubs_embeds) < current_page+1:
+                    clubs_embeds.append(discord.Embed(description="", color=discord.Color.from_rgb(255,255,255)))
                 club_desc = (lambda s: s or "*No description.*")(club.description)
                 club_leader_mention = (lambda s: s.mention if s.name else "*Unknown User*")(club.leader)
                 clubs_embeds[current_page].description += f'\n- **`{club.name}`** - **{textwrap.shorten((club_desc+" ")[:club_desc.find("\n")], 60)}**\n-# ↳ Led by {club_leader_mention} • **Member #{club.users.index(interaction.user)+1}**\n'
@@ -459,8 +501,10 @@ class Club(commands.Cog):
         current_page=0
         if clubs:
             for club in clubs:
-                if clubs_embeds[current_page].description.count('\n') > 9: current_page+=1
-                if len(clubs_embeds) < current_page+1: clubs_embeds.append(discord.Embed(description="", color=discord.Color.from_rgb(255,255,255)))
+                if clubs_embeds[current_page].description.count('\n') > 9:
+                    current_page+=1
+                if len(clubs_embeds) < current_page+1:
+                    clubs_embeds.append(discord.Embed(description="", color=discord.Color.from_rgb(255,255,255)))
                 club_desc = (lambda s: s or "*No description.*")(club.description)
                 club_leader_mention = (lambda s: s.mention if s.name else "*Unknown User*")(club.leader)
                 clubs_embeds[current_page].description += f'\n- **`{club.name}`** - **{textwrap.shorten((club_desc+" ")[:club_desc.find("\n")], 60)}**\n-# ↳ Led by {club_leader_mention} • **Member Count: {len(club.users)}**\n'
@@ -475,9 +519,12 @@ class Club(commands.Cog):
             vaild_members = [user for user in club.users if user.name]
             if vaild_members:
                 ping_str += "\n-# "
-            for user in vaild_members: ping_str += user.mention
-            if not message: await interaction.channel.send(ping_str)
-            else: await message.reply(ping_str)
+            for user in vaild_members:
+                ping_str += user.mention
+            if not message:
+                await interaction.channel.send(ping_str)
+            else:
+                await message.reply(ping_str)
             return await interaction.followup.send("Sent Club Ping.")
         return await interaction.followup.send("You are not a leader of a club.", ephemeral=True, allowed_mentions=discord.AllowedMentions.none())
 
