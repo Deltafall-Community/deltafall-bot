@@ -1,4 +1,3 @@
-from typing import Optional
 from enum import Enum
 from dataclasses import field
 from dataclasses import dataclass
