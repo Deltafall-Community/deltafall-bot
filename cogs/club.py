@@ -440,7 +440,7 @@ class Club(commands.Cog):
 
     @group.command(name="leave", description="leaves a club")
     async def leaveclub(self, interaction: discord.Interaction, leader: discord.User):
-        await interaction.response.defer()
+        await interaction.response.defer(ephemeral=True)
         club = await leave_club(interaction, await self.get_connection(), interaction.user, leader)
         if club:
             return await interaction.followup.send(f"You have successfully left {leader.mention}'s club.", ephemeral=True, allowed_mentions=discord.AllowedMentions.none())
