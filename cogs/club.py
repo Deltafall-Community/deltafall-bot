@@ -29,7 +29,7 @@ paginator_buttons = {
 @dataclass
 class ClubData:
     name: str
-    leader: Optional[discord.User]
+    leader: discord.User
     description: str = None
     icon_url: str = "https://deltafall-community.github.io/resources/deltafall-logo-old.png"
     banner_url: str = "https://deltafall-community.github.io/resources/titieless_splash_screen.png"
