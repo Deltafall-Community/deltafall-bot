@@ -118,19 +118,12 @@ def db_join_club(connection, table, user: discord.User, leader: discord.User):
         """, (user.id, leader.id))
     connection.commit()
 async def join_club(interaction: discord.Interaction, connection, user: discord.User, leader: discord.User):
-    joined_clubs = await get_user_clubs(interaction, connection, user)
-    joined_club=False
-    if joined_clubs:
-        for club in joined_clubs:
-            if club.leader == leader:
-                joined_club=True
-                break
-    if joined_club:
-        return ClubError.ALREADY_JOINED
-    
     club = await get_club(interaction, connection, leader)
     table = interaction.guild.id
     if club:
+        if interaction.user in club.users:
+            return ClubError.ALREADY_JOINED
+        
         event_loop = asyncio.get_running_loop()
         await event_loop.run_in_executor(None, db_join_club, connection, table, user, leader)
         return club
@@ -209,21 +202,16 @@ def db_leave_club(connection, table, user: discord.User, leader: discord.User):
         WHERE user = ? AND leader = ?""", (user.id,leader.id,))
     connection.commit()
 async def leave_club(interaction: discord.Interaction, connection, user: discord.User, leader: discord.User):
-    clubs = await get_user_clubs(interaction, connection, user)
-    is_in_leader_club=False
-    if clubs:
-        for club in clubs:
-            if club.leader == leader:
-                is_in_leader_club=True
-                break
-    if not is_in_leader_club:
-        return None
+    club = await get_club(interaction, connection, leader)
+    if club:
+        if interaction.user not in club.users:
+            return None
+        
+        table = interaction.guild.id
+        event_loop = asyncio.get_running_loop()
+        await event_loop.run_in_executor(None, db_leave_club, connection, table, user, leader)
 
-    table = interaction.guild.id
-    event_loop = asyncio.get_running_loop()
-    await event_loop.run_in_executor(None, db_leave_club, connection, table, user, leader)
-
-    return True
+        return True
 
 class EditClubModal(discord.ui.Modal, title='Edit Club'):
     def __init__(self, connection, club_obj: 'Club', club: ClubData):
