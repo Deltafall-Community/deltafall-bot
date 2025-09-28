@@ -24,7 +24,7 @@ class MangaRandom(commands.Cog):
             await interaction.followup.send('Something went wrong.')
             print(e)
 
-        embed = discord.Embed(description=f"## [{list(page.manga.title.values())[0]}]({"https://mangadex.org/title/" + page.manga.id})")
+        embed = discord.Embed(description=f"## [{list(page.manga.title.values())[0]}]({"https://mangadex.org/chapter/" + page.chapter.id + "/" + str(page.page)})")
         embed.description += f"\n-# Page: {page.page}"
         if page.chapter.chapter:
             embed.description += f", Chapter: {page.chapter.chapter}"
