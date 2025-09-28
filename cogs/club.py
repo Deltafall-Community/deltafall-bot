@@ -1,10 +1,11 @@
 from enum import Enum
 from dataclasses import field
 from dataclasses import dataclass
-from typing import List
+from typing import List, Optional
 import traceback
 import asyncio
 import textwrap
+from rapidfuzz import fuzz, process
 
 import discord
 from discord.ext.paginators.button_paginator import ButtonPaginator, PaginatorButton
@@ -33,6 +34,14 @@ class ClubData:
     icon_url: str = "https://deltafall-community.github.io/resources/deltafall-logo-old.png"
     banner_url: str = "https://deltafall-community.github.io/resources/titieless_splash_screen.png"
     users: List[discord.User] = field(default_factory=list)
+
+@dataclass
+class ClubDataLight:
+    name: str
+    leader: int
+    description: str = None
+    icon_url: str = "https://deltafall-community.github.io/resources/deltafall-logo-old.png"
+    banner_url: str = "https://deltafall-community.github.io/resources/titieless_splash_screen.png"
 
 class DummyUser(discord.User):
     def __init__(self, id, name, discriminator, bot=False, avatar=None):
@@ -70,6 +79,10 @@ async def get_guild_clubs(interaction: discord.Interaction, connection):
     event_loop = asyncio.get_running_loop()
     clubs = await event_loop.run_in_executor(None, db_get_table_clubs, connection, table)    
     return [await populate_club(interaction, club, connection) for club in clubs]
+async def get_guild_clubs_light(connection, id: int):
+    event_loop = asyncio.get_running_loop()
+    clubs = await event_loop.run_in_executor(None, db_get_table_clubs, connection, id)    
+    return [ClubDataLight(club[0], club[1], club[2], club[3], club[4]) for club in clubs]
 
 def db_get_club(connection, table, leader: discord.User):
     cur = connection.cursor()
@@ -213,6 +226,14 @@ async def leave_club(interaction: discord.Interaction, connection, user: discord
 
         return True
 
+def db_get_guilds(connection):
+    cur = connection.cursor()
+    return cur.execute("""SELECT name FROM sqlite_master WHERE type='table'""").fetchall()
+async def get_guilds_id(connection):
+    event_loop = asyncio.get_running_loop()
+    guilds = await event_loop.run_in_executor(None, db_get_guilds, connection)
+    return list(set([int(''.join(c for c in guild[0] if c.isdigit())) for guild in guilds]))
+
 class EditClubModal(discord.ui.Modal, title='Edit Club'):
     def __init__(self, connection, club_obj: 'Club', club: ClubData):
         super().__init__()
@@ -257,7 +278,7 @@ class EditClubModal(discord.ui.Modal, title='Edit Club'):
         traceback.print_exception(type(error), error, error.__traceback__)
 
 class CreateClubModal(discord.ui.Modal, title='Create Club'):
-    def __init__(self, connection, club_obj):
+    def __init__(self, connection, club_obj: 'Club'):
         super().__init__()
         self.connection = connection
         self.club_obj = club_obj
@@ -296,6 +317,7 @@ class CreateClubModal(discord.ui.Modal, title='Create Club'):
         club = await create_club(interaction, self.connection, interaction.user, self.name.value, self.description.value, self.icon_url.value, self.banner_url.value)
         if club == ClubError.ALREADY_OWNED:
             return await interaction.response.send_message(content="You have already owned a club.")
+        await self.club_obj.add_club_to_cache(interaction, club)
         await interaction.response.send_message(view=ClubView(club_obj=self.club_obj, club=club, timeout=None), allowed_mentions=discord.AllowedMentions.none())
 
     async def on_error(self, interaction: discord.Interaction, error: Exception) -> None:
@@ -385,6 +407,7 @@ class Club(commands.Cog):
             callback=self.club_ping,
         )
         self.bot.tree.add_command(self.club_ping_ctx_menu)
+        self.clubs_cache = {}
 
     def check_connection(self):
         try:
@@ -399,6 +422,30 @@ class Club(commands.Cog):
     async def get_connection(self):
         self.event_loop = asyncio.get_running_loop()
         return await self.event_loop.run_in_executor(None, self.check_connection)
+
+    async def clubs_autocomplete(self, interaction: discord.Interaction, current: str) -> List[app_commands.Choice[str]]:
+        matches = process.extract(
+            current,
+            [app_commands.Choice(name=f"{club.name} - {(await get_member(interaction, club.leader)).name}", value=str(club.leader)) for club in self.clubs_cache[interaction.guild.id]],
+            scorer=fuzz.ratio,
+            processor=lambda c: getattr(c, "name", str(c)),
+        )
+        return [club for club, score, _ in matches][:5]
+
+    async def remove_club_from_cache(self, interaction: discord.Interaction):
+        self.clubs_cache[interaction.guild.id] = [club for club in self.clubs_cache[interaction.guild.id] if club.leader != interaction.user.id]
+
+    async def add_club_to_cache(self, interaction: discord.Interaction, club: ClubData):
+        self.clubs_cache[interaction.guild.id].append(ClubDataLight(club.name, club.leader.id, club.description, club.icon_url, club.banner_url))
+
+    async def refresh_clubs_cache(self):
+        guilds = await get_guilds_id(await self.get_connection())
+        for guild in guilds:
+            self.clubs_cache[guild] = await get_guild_clubs_light(await self.get_connection(), guild)
+
+    @commands.Cog.listener()
+    async def on_ready(self):
+        await self.refresh_clubs_cache()
 
     group = app_commands.Group(name="club", description="club stuff")
 
@@ -420,11 +467,17 @@ class Club(commands.Cog):
         await interaction.response.defer()
         delete = await delete_club(interaction, await self.get_connection(), interaction.user)
         if delete:
+            await self.remove_club_from_cache(interaction)
             return await interaction.followup.send("Your club has been successfully disbanded, All of your club members have been kicked out.", ephemeral=False, allowed_mentions=discord.AllowedMentions.none())
         return await interaction.followup.send("You are not a leader of a club.", ephemeral=False, allowed_mentions=discord.AllowedMentions.none())
 
     @group.command(name="join", description="joins a club")
-    async def joinclub(self, interaction: discord.Interaction, leader: discord.User):
+    @app_commands.autocomplete(search=clubs_autocomplete)
+    async def joinclub(self, interaction: discord.Interaction, search: Optional[str], leader: Optional[discord.User]):
+        if search:
+            leader = await get_member(interaction, int(search))
+        elif not leader:
+            return await interaction.response.send_message("Please specify an input.", ephemeral=True)
         await self.join_club(interaction, leader)
 
     async def join_club(self, interaction: discord.Interaction, leader: discord.User):
@@ -439,7 +492,15 @@ class Club(commands.Cog):
         return await interaction.followup.send(f"No club was owned by {leader.mention}", ephemeral=True, allowed_mentions=discord.AllowedMentions.none())
 
     @group.command(name="leave", description="leaves a club")
-    async def leaveclub(self, interaction: discord.Interaction, leader: discord.User):
+    @app_commands.autocomplete(search=clubs_autocomplete)
+    async def leaveclub(self, interaction: discord.Interaction, search: Optional[str], leader: Optional[discord.User]):
+        if search:
+            leader = await get_member(interaction, int(search))
+        elif not leader:
+            return await interaction.response.send_message("Please specify an input.", ephemeral=True)
+        await self.leave_club(interaction, leader)
+
+    async def leave_club(self, interaction: discord.Interaction, leader: discord.User):
         await interaction.response.defer(ephemeral=True)
         club = await leave_club(interaction, await self.get_connection(), interaction.user, leader)
         if club:
@@ -447,7 +508,12 @@ class Club(commands.Cog):
         return await interaction.followup.send(f"You didn't join {leader.mention}'s club.", ephemeral=True, allowed_mentions=discord.AllowedMentions.none())
 
     @group.command(name="info", description="gets club info")
-    async def info(self, interaction: discord.Interaction, leader: discord.User):
+    @app_commands.autocomplete(search=clubs_autocomplete)
+    async def info(self, interaction: discord.Interaction, search: Optional[str], leader: Optional[discord.User]):
+        if search:
+            leader = await get_member(interaction, int(search))
+        elif not leader:
+            return await interaction.response.send_message("Please specify an input.", ephemeral=True)
         await interaction.response.defer()
         club = await get_club(interaction, await self.get_connection(), leader)
         if club:
