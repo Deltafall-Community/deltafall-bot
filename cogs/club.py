@@ -232,7 +232,7 @@ def db_get_guilds(connection):
 async def get_guilds_id(connection):
     event_loop = asyncio.get_running_loop()
     guilds = await event_loop.run_in_executor(None, db_get_guilds, connection)
-    return list(set([int(''.join(c for c in guild[0] if c.isdigit())) for guild in guilds]))
+    return list(set([int(id) for guild in guilds if (id := ''.join(c for c in guild[0] if c.isdigit())) != '']))
 
 class EditClubModal(discord.ui.Modal, title='Edit Club'):
     def __init__(self, connection, club_obj: 'Club', club: ClubData):
