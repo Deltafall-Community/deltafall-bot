@@ -433,9 +433,12 @@ class Club(commands.Cog):
         return [club for club, score, _ in matches][:5]
 
     async def remove_club_from_cache(self, interaction: discord.Interaction):
-        self.clubs_cache[interaction.guild.id] = [club for club in self.clubs_cache[interaction.guild.id] if club.leader != interaction.user.id]
+        if self.clubs_cache.get(interaction.guild.id):
+            self.clubs_cache[interaction.guild.id] = [club for club in self.clubs_cache[interaction.guild.id] if club.leader != interaction.user.id]
 
     async def add_club_to_cache(self, interaction: discord.Interaction, club: ClubData):
+        if not self.clubs_cache.get(interaction.guild.id):
+            self.clubs_cache[interaction.guild.id] = []
         self.clubs_cache[interaction.guild.id].append(ClubDataLight(club.name, club.leader.id, club.description, club.icon_url, club.banner_url))
 
     async def refresh_clubs_cache(self):
