@@ -2,7 +2,7 @@ from MangaDexPy import MangaDex, Manga, Chapter, Group, Author, Cover
 from MangaDexPy import APIError, NoResultsError, NetworkChapter
 from typing import Type, List, Union
 from dataclasses import dataclass
-from util import convert_requests_to_aiohttp, aiohttp_to_requests_response
+from mangadexasync.util import convert_requests_to_aiohttp, aiohttp_to_requests_response
 import MangaDexPy
 import random
 import asyncio
@@ -78,7 +78,7 @@ class MangaDexAsync():
                 continue
 
             try:
-                chapters = await retrieve_pages(self.cli, f"{self.cli.api}/manga/{manga.id}/feed", Chapter, call_limit=100)
+                chapters = await retrieve_pages(self.cli, f"{self.cli.api}/manga/{manga.id}/feed", Chapter, limit=1, call_limit=100)
             except MangaDexPy.NoResultsError:
                 continue
 
