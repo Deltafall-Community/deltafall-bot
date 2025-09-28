@@ -21,3 +21,4 @@ dateparser
 soundcloud-lib
 aiosqlite
 MangaDex.py
+rapidfuzz
