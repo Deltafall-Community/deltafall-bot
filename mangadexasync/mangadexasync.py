@@ -1,6 +1,6 @@
 from MangaDexPy import MangaDex, Manga, Chapter, Group, Author, Cover
-from MangaDexPy import APIError, NoResultsError, NetworkChapter
-from typing import Type, List, Union
+from MangaDexPy import INCLUDE_ALL, APIError, NoResultsError, NetworkChapter
+from typing import Type, List, Union, Dict, Optional
 from dataclasses import dataclass
 from mangadexasync.util import convert_requests_to_aiohttp, aiohttp_to_requests_response
 import MangaDexPy
@@ -31,7 +31,7 @@ async def retrieve_pages(cli: MangaDex, url: str, obj: Type[Union[Manga, Chapter
         elif req.status == 204:
             pass
         else:
-            raise APIError(await aiohttp_to_requests_response(resp))
+            raise APIError(await aiohttp_to_requests_response(req))
         if limit and len(data) >= limit:
             break
         if resp is not None:
@@ -54,7 +54,7 @@ async def read_chapter(cli: MangaDex, ch: Chapter, force_443: bool = False) -> N
         resp = await req.json()
         return NetworkChapter(resp, ch, cli)
     else:
-        raise APIError(await aiohttp_to_requests_response(resp))
+        raise APIError(await aiohttp_to_requests_response(req))
 
 @dataclass
 class Page:
@@ -66,19 +66,46 @@ class Page:
 class MangaDexAsync():
     def __init__(self):
         self.cli = MangaDexPy.MangaDex()
-    
-    async def get_random_page(self, light: bool, filters: dict = {}) -> str:
-        while True:
+        self.tags_cache: Dict[str, str] = {}
+
+    async def get_tags(self) -> Dict[str, str]:
+        async with convert_requests_to_aiohttp(self.cli.session) as session:
+            req = await session.get(f"{self.cli.api}/manga/tag")
+        if req.status == 200:
+            resp = await req.json()
+            tags = {}
+            for tag in resp["data"]:
+                tags[tag.get("attributes").get("name").get("en")] = tag.get("id")
+            return tags
+        raise NoResultsError()
+
+    async def refresh_tags_cache(self):
+        self.tags_cache = await self.get_tags()
+
+    def get_tag_id_from_str(self, tag: str) -> Optional[str]:
+        return self.tags_cache.get(tag)
+
+    async def get_random_manga(self, filters: dict = {}, includes: List[str] = [], call_limit: int = 100) -> Manga:
+        includes = INCLUDE_ALL if not includes else includes
+        if includes:
+            filters |= {"includes[]": includes}
+        called = 0
+        while called < call_limit:
+            called += 1
             async with convert_requests_to_aiohttp(self.cli.session) as session:
                 req = await session.get(f"{self.cli.api}/manga/random", params=filters)
             if req.status == 200:
                 resp = await req.json()
-                manga = Manga(resp["data"], self.cli)
-            else:
-                continue
+                return Manga(resp["data"], self.cli)
+        raise NoResultsError()
 
+    async def get_random_page(self, light: bool, filters: dict = {}, call_limit: int = 100) -> Page:
+        called = 0
+        while called < call_limit:
+            called += 1
             try:
-                chapters = await retrieve_pages(self.cli, f"{self.cli.api}/manga/{manga.id}/feed", Chapter, limit=1, call_limit=100)
+                manga = await self.get_random_manga(filters)
+                chapters = await retrieve_pages(self.cli, f"{self.cli.api}/manga/{manga.id}/feed", Chapter, limit=50, call_limit=100)
             except MangaDexPy.NoResultsError:
                 continue
 
@@ -94,3 +121,4 @@ class MangaDexAsync():
             page_idx = random.randint(0, len(pages)-1)
             
             return Page(pages[page_idx], page_idx+1, manga, chapter)
+        raise NoResultsError()
