@@ -2,7 +2,7 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 
-from mangadexasync.mangadexasync import MangaDexAsync, Page
+from mangadexasync.mangadexasync import MangaDexAsync, Page, Manga
 
 class MangaRandom(commands.Cog):
     def __init__(self, bot):
@@ -11,11 +11,34 @@ class MangaRandom(commands.Cog):
 
     group = app_commands.Group(name="manga", description="manga stuff")
 
+    @group.command(name="random", description="gets a random manga from mangadex")
+    async def random(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+        filters = {
+            "contentRating[]": ["safe"],
+            "excludedTags[]": [self.mgd.get_tag_id_from_str("Gore"), self.mgd.get_tag_id_from_str("Sexual Violence")],
+            "excludedTagsMode": "AND"
+        }
+        
+        try:
+            manga: Manga = await self.mgd.get_random_manga(filters)
+        except Exception as e:
+            await interaction.followup.send('Something went wrong.')
+            self.bot.logger.error(e)
+
+        embed = discord.Embed(description=f"## [{list(manga.title.values())[0]}]({"https://mangadex.org/title/" + manga.id})")
+        embed.description += f"\n{list(manga.desc.values())[0]}"
+        embed.set_image(url=manga.cover.url)
+
+        await interaction.followup.send(embed=embed)
+
     @group.command(name="random_page", description="gets a random page from a random manga from mangadex")
     async def random_page(self, interaction: discord.Interaction):
         await interaction.response.defer()
         filters = {
-            "contentRating[]": ["safe"]
+            "contentRating[]": ["safe"],
+            "excludedTags[]": [self.mgd.get_tag_id_from_str("Gore"), self.mgd.get_tag_id_from_str("Sexual Violence")],
+            "excludedTagsMode": "AND"
         }
         
         try:
@@ -35,4 +58,6 @@ class MangaRandom(commands.Cog):
         await interaction.followup.send(embed=embed)
 
 async def setup(bot):
-    await bot.add_cog(MangaRandom(bot))
+    mr = MangaRandom(bot)
+    await mr.mgd.refresh_tags_cache()
+    await bot.add_cog(mr)
