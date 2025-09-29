@@ -16,7 +16,7 @@ class MangaRandom(commands.Cog):
         await interaction.response.defer()
         filters = {
             "contentRating[]": ["safe"],
-            "excludedTags[]": [self.mgd.get_tag_id_from_str("Gore"), self.mgd.get_tag_id_from_str("Sexual Violence")],
+            "excludedTags[]": [self.mgd.get_tag_id_from_str("Gore"), self.mgd.get_tag_id_from_str("Sexual Violence"), self.mgd.get_tag_id_from_str("Boys' Love"), self.mgd.get_tag_id_from_str("Girls' Love"), self.mgd.get_tag_id_from_str("Loli")],
             "excludedTagsMode": "AND"
         }
         
@@ -37,7 +37,7 @@ class MangaRandom(commands.Cog):
         await interaction.response.defer()
         filters = {
             "contentRating[]": ["safe"],
-            "excludedTags[]": [self.mgd.get_tag_id_from_str("Gore"), self.mgd.get_tag_id_from_str("Sexual Violence")],
+            "excludedTags[]": [self.mgd.get_tag_id_from_str("Gore"), self.mgd.get_tag_id_from_str("Sexual Violence"), self.mgd.get_tag_id_from_str("Boys' Love"), self.mgd.get_tag_id_from_str("Girls' Love"), self.mgd.get_tag_id_from_str("Loli")],
             "excludedTagsMode": "AND"
         }
         
