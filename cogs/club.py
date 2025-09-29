@@ -11,7 +11,6 @@ import discord
 from discord.ext.paginators.button_paginator import ButtonPaginator, PaginatorButton
 from discord.ext import commands
 from discord import app_commands
-from discord import Embed
 
 class ClubError(Enum):
     ALREADY_JOINED = 1
@@ -446,10 +445,6 @@ class Club(commands.Cog):
         for guild in guilds:
             self.clubs_cache[guild] = await get_guild_clubs_light(await self.get_connection(), guild)
 
-    @commands.Cog.listener()
-    async def on_ready(self):
-        await self.refresh_clubs_cache()
-
     group = app_commands.Group(name="club", description="club stuff")
 
     @group.command(name="create", description="creates your club")
@@ -586,4 +581,6 @@ class Club(commands.Cog):
         return await interaction.followup.send("You are not a leader of a club.", ephemeral=True, allowed_mentions=discord.AllowedMentions.none())
 
 async def setup(bot):
-    await bot.add_cog(Club(bot))
+    club = Club(bot)
+    await club.refresh_clubs_cache()
+    await bot.add_cog(club)
