@@ -68,7 +68,7 @@ class randomquote(commands.Cog):
             cur = self.bot.quote_db.cursor()
             cur.execute("""SELECT 1""")
         except Exception as ex:
-            print(f"Reconnecting to Quote Database... (Reason: {repr(ex)})")
+            self.bot.logger.info(f"Reconnecting to Quote Database... (Reason: {repr(ex)})")
             self.bot.quote_db = self.bot.connect_quote_db()
             return self.check_connection()
         return self.bot.quote_db

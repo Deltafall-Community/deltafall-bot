@@ -414,7 +414,7 @@ class Club(commands.Cog):
             cur = self.bot.club_db.cursor()
             cur.execute("""SELECT 1""")
         except Exception as ex:
-            print(f"Reconnecting to Club Database... (Reason: {repr(ex)})")
+            self.bot.logger.info(f"Reconnecting to Club Database... (Reason: {repr(ex)})")
             self.bot.club_db = self.bot.connect_club_db()
             return self.check_connection()
         return self.bot.club_db

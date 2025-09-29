@@ -22,7 +22,7 @@ class MangaRandom(commands.Cog):
             page: Page = await self.mgd.get_random_page(True, filters)
         except Exception as e:
             await interaction.followup.send('Something went wrong.')
-            print(e)
+            self.bot.logger.error(e)
 
         embed = discord.Embed(description=f"## [{list(page.manga.title.values())[0]}]({"https://mangadex.org/chapter/" + page.chapter.id + "/" + str(page.page)})")
         embed.description += f"\n-# Page: {page.page}"

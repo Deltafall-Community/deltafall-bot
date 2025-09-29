@@ -48,7 +48,8 @@ class Schedule():
     def get_all_payloads(self):
         payload_refs = self.__get_payload_refs_db(self.check_connection())
         payloads=[]
-        for values in payload_refs: payloads.append(Payload(values[1][values[1].find(".")+1:], datetime.fromtimestamp(values[0]), RowReference(*values[1:])))
+        for values in payload_refs:
+            payloads.append(Payload(values[1][values[1].find(".")+1:], datetime.fromtimestamp(values[0]), RowReference(*values[1:])))
         return payloads
 
     def start_check_payload_loop(self):
@@ -75,9 +76,11 @@ class Schedule():
 
     def connect_db(self):
         try:
-            if self.is_sqlitecloud: return sqlitecloud.connect(self.db_connect_str)
+            if self.is_sqlitecloud:
+                return sqlitecloud.connect(self.db_connect_str)
             else: return sqlite3.connect(self.db_connect_str, check_same_thread=False)
-        except Exception as e: print(f"Failed to connect to Schedule Database.. (Reason: {e})") 
+        except Exception as e:
+            print(f"Failed to connect to Schedule Database.. (Reason: {e})") 
 
     def check_connection(self):
         try:
@@ -102,7 +105,7 @@ class Schedule():
         return dict(zip(keys, values))
     def __delete_payload_db(self, connection, payload: Payload):
         cur = connection.cursor()
-        cur.execute(f"""
+        cur.execute("""
             DELETE FROM 'schedule'
             WHERE id = ? AND payload_table = ?""", (payload.reference.id,payload.reference.table))
         cur.execute(f"""
@@ -111,8 +114,8 @@ class Schedule():
         connection.commit()
     def __get_payload_refs_db(self, connection):
         cur = connection.cursor()
-        cur.execute(f"CREATE TABLE IF NOT EXISTS 'schedule'(trigger, payload_table, id)")
-        return cur.execute(f"""
+        cur.execute("CREATE TABLE IF NOT EXISTS 'schedule'(trigger, payload_table, id)")
+        return cur.execute("""
             SELECT * FROM 'schedule' ORDER BY trigger
         """).fetchall()
     def __add_payload_db(self, connection, table, trigger_on: datetime, object: Dataclass):
@@ -131,8 +134,8 @@ class Schedule():
             """, tuple(attrs.values()))
         
         row=RowReference(payload_table, cur.lastrowid)
-        cur.execute(f"CREATE TABLE IF NOT EXISTS 'schedule'(trigger, payload_table, id)")
-        cur.execute(f"""
+        cur.execute("CREATE TABLE IF NOT EXISTS 'schedule'(trigger, payload_table, id)")
+        cur.execute("""
             INSERT INTO 'schedule' VALUES
                 (?, ?, ?)
             """, (trigger_on.timestamp(), row.table, row.id))

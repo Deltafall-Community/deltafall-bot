@@ -30,7 +30,8 @@ class Bot(commands.Bot):
 
         # Get bot config from file 
         # this will be accessible through out the whole bot
-        with open("config.json", "r") as file: self.config = json.load(file)
+        with open("config.json", "r") as file:
+            self.config = json.load(file)
 
         self.token = self.config["token"]
         self.quote_db = self.connect_quote_db()
@@ -39,24 +40,34 @@ class Bot(commands.Bot):
         self.phishing_detector = None
         self.valentine_lvl_db = plyvel.DB('valentine', create_if_missing=True)
 
+        self.logger = logger
+
     async def get_phishing_detector(self):
-        self.phishing_detector = await PhishingDetector()
+        self.phishing_detector = await PhishingDetector(logger)
 
     async def get_scheduler(self):
-        if self.config.get("sqlitecloud-schedule"): self.scheduler = await Schedule(self.config["sqlitecloud-schedule"], True)
-        else: self.scheduler = await Schedule("schedule.db")
+        if self.config.get("sqlitecloud-schedule"):
+            self.scheduler = await Schedule(self.config["sqlitecloud-schedule"], True)
+        else:
+            self.scheduler = await Schedule("schedule.db")
 
     def connect_quote_db(self):
         try:
-            if self.config.get("sqlitecloud-quote"): return sqlitecloud.connect(self.config["sqlitecloud-quote"])
-            else: return sqlite3.connect("quotes.db", check_same_thread=False)
-        except Exception as e: print(f"Failed to connect to Quote Database.. (Reason: {e})") 
+            if self.config.get("sqlitecloud-quote"):
+                return sqlitecloud.connect(self.config["sqlitecloud-quote"])
+            else:
+                return sqlite3.connect("quotes.db", check_same_thread=False)
+        except Exception as e:
+            logger.error(f"Failed to connect to Quote Database.. (Reason: {e})") 
 
     def connect_club_db(self):
         try:
-            if self.config.get("sqlitecloud-club"): return sqlitecloud.connect(self.config["sqlitecloud-club"])
-            else: return sqlite3.connect("clubs.db", check_same_thread=False)
-        except Exception as e: print(f"Failed to connect to Club Database.. (Reason: {e})") 
+            if self.config.get("sqlitecloud-club"):
+                return sqlitecloud.connect(self.config["sqlitecloud-club"])
+            else:
+                return sqlite3.connect("clubs.db", check_same_thread=False)
+        except Exception as e:
+            logger.error(f"Failed to connect to Club Database.. (Reason: {e})") 
 
     async def load_extensions(self):
         for file in os.listdir(self.cogsfolder):
