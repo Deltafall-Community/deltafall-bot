@@ -22,8 +22,8 @@ class MangaRandom(commands.Cog):
         try:
             manga: Manga = await self.mgd.get_random_manga(filters)
         except Exception as e:
-            await interaction.followup.send('Something went wrong.')
-            self.bot.logger.error(e)
+            self.bot.logger.error(e, exc_info=True)
+            return await interaction.followup.send('Something went wrong.')
 
         embed = discord.Embed(description=f"## [{list(manga.title.values())[0]}]({"https://mangadex.org/title/" + manga.id})")
         embed.description += f"\n{list(manga.desc.values())[0]}"
@@ -42,8 +42,8 @@ class MangaRandom(commands.Cog):
         try:
             page: Page = await self.mgd.get_random_page(True, filters)
         except Exception as e:
-            await interaction.followup.send('Something went wrong.')
-            self.bot.logger.error(e)
+            self.bot.logger.error(e, exc_info=True)
+            return await interaction.followup.send('Something went wrong.')
 
         embed = discord.Embed(description=f"## [{list(page.manga.title.values())[0]}]({"https://mangadex.org/chapter/" + page.chapter.id + "/" + str(page.page)})")
         embed.description += f"\n-# Page: {page.page}"
