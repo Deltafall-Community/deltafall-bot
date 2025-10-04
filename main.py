@@ -6,13 +6,15 @@ import asyncio
 import sqlite3
 import sys
 import json
+import time
 
 # dbs
 
 import sqlitecloud
 import plyvel
-from namuschedule.schedule import Schedule
-from namuphishingdetection.phishingdetector import PhishingDetector
+
+from libs.namuschedule.schedule import Schedule
+from libs.namuphishingdetection.phishingdetector import PhishingDetector
 
 logger = logging.getLogger('discord')
 logger.setLevel(logging.INFO)
@@ -22,10 +24,6 @@ logger.addHandler(handler)
 
 class Bot(commands.Bot):
     def __init__(self):
-        intents = discord.Intents.all()
-        command_prefix = '!'
-        super().__init__(command_prefix=command_prefix, intents=intents)
-
         self.cogsfolder = "cogs"
 
         # Get bot config from file 
@@ -41,6 +39,7 @@ class Bot(commands.Bot):
         self.valentine_lvl_db = plyvel.DB('valentine', create_if_missing=True)
 
         self.logger = logger
+        super().__init__(command_prefix=prefix if (prefix := self.config.get("prefix")) else "!", intents=discord.Intents.all())
 
     async def get_phishing_detector(self):
         self.phishing_detector = await PhishingDetector(logger)
@@ -78,11 +77,12 @@ class Bot(commands.Bot):
         logger.info("All cogs loaded successfully.")
 
     async def _load_cog(self, cog_name):
+        start = time.time_ns()
         try:
             await self.load_extension(cog_name)
-            logger.info(f"Loaded {cog_name} cog.")
+            logger.info(f"Loaded {cog_name} ({(1e-9 * (time.time_ns() - start)):.4f}s)")
         except Exception as e:
-            logger.error(f"Failed to load cog {cog_name}: {e}")
+            logger.error(f"Failed to load {cog_name}: {e}")
 
 bot = Bot()
 

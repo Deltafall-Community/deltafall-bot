@@ -1,7 +1,7 @@
 import discord
 from discord.ext import tasks, commands
 from discord import app_commands
-from namuphishingdetection.phishingdetector import PhishingDetector
+from libs.namuphishingdetection.phishingdetector import PhishingDetector
 import asyncio
 
 class phishing(commands.Cog):

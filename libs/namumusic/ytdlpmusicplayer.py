@@ -10,11 +10,9 @@ import audioop
 import time
 import yt_dlp
 from urllib.parse import urlparse 
-from namumusic.mixer import Mixer
-from namumusic.ytdlpaudio import PlaybackState
-from namumusic.ytdlpaudio import YTDLPAudio
-from namumusic.ytdlpaudio import Status
-from namumusic.metadatagetter import get_metadata
+from libs.namumusic.mixer import Mixer
+from libs.namumusic.ytdlpaudio import PlaybackState, YTDLPAudio, Status
+from libs.namumusic.metadatagetter import get_metadata
 import discord
 
 class YTDLPMusicPlayer():

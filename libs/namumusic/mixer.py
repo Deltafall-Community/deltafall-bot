@@ -1,6 +1,4 @@
 import discord
-import audioop
-import traceback
 import struct
 
 class Mixer(discord.AudioSource):

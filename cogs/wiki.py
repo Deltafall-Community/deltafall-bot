@@ -7,7 +7,7 @@ import aiohttp
 import mediawiki
 import re
 
-from namuwikitextparser import namuwikitextparser, discordformatwikitext
+from libs.namuwikitextparser import namuwikitextparser, discordformatwikitext
 
 class wiki(commands.Cog):
     def __init__(self, bot):

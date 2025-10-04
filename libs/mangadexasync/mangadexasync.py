@@ -2,7 +2,7 @@ from MangaDexPy import MangaDex, Manga, Chapter, Group, Author, Cover
 from MangaDexPy import INCLUDE_ALL, APIError, NoResultsError, NetworkChapter
 from typing import Type, List, Union, Dict, Optional
 from dataclasses import dataclass
-from mangadexasync.util import convert_requests_to_aiohttp, aiohttp_to_requests_response
+from libs.mangadexasync.util import convert_requests_to_aiohttp, aiohttp_to_requests_response
 import MangaDexPy
 import random
 import asyncio

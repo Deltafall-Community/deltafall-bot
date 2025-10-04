@@ -5,7 +5,7 @@ import dateparser
 from dataclasses import dataclass
 from typing import Optional
 
-from namuschedule.schedule import Schedule
+from libs.namuschedule.schedule import Schedule
 from datetime import datetime
 import time
 

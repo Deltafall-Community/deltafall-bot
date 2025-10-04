@@ -1,7 +1,7 @@
 import yt_dlp
 from typing import List
 from urllib.parse import urlparse
-from namumusic.metadata import Metadata
+from libs.namumusic.metadata import Metadata
 from datetime import datetime
 from sclib import SoundcloudAPI, Track, Playlist
 

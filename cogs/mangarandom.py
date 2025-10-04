@@ -2,7 +2,7 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 
-from mangadexasync.mangadexasync import MangaDexAsync, Page, Manga
+from libs.mangadexasync.mangadexasync import MangaDexAsync, Page, Manga
 
 class MangaRandom(commands.Cog):
     def __init__(self, bot):

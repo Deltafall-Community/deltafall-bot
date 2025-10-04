@@ -1,4 +1,4 @@
-from namuwikitextparser import namuwikitextparser
+from libs.namuwikitextparser import namuwikitextparser
 from typing import List
 
 async def make_superscript(text: str):

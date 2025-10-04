@@ -19,7 +19,7 @@ from urllib.parse import urlparse
 import ffmpeg
 import audioop
 
-from namumusic.metadata import Metadata
+from libs.namumusic.metadata import Metadata
 
 class Status(Enum):
     IDLE = 0

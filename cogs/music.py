@@ -7,10 +7,8 @@ from discord.ext import commands
 from discord import app_commands
 from discord.ext.paginators.button_paginator import ButtonPaginator, PaginatorButton
 
-from namumusic.ytdlpmusicplayer import YTDLPMusicPlayer
-from namumusic.ytdlpaudio import PlaybackState
-from namumusic.ytdlpaudio import Metadata
-from namumusic.ytdlpaudio import YTDLPAudio
+from libs.namumusic.ytdlpmusicplayer import YTDLPMusicPlayer
+from libs.namumusic.ytdlpaudio import PlaybackState, Metadata, YTDLPAudio
 
 import aiohttp
 from io import BytesIO
