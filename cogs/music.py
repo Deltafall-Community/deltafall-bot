@@ -21,8 +21,10 @@ class music(commands.Cog):
 
     def get_guild_player(self, voice_client: discord.VoiceClient):
         player = self.guilds.get(voice_client.guild.id)
-        if player: return player
-        else: player = YTDLPMusicPlayer(voice_client, on_finished=self.on_track_end, on_start=self.on_track_start)
+        if player:
+            return player
+        else:
+            player = YTDLPMusicPlayer(voice_client, on_finished=self.on_track_end, on_start=self.on_track_start)
         self.guilds[voice_client.guild.id] = player
         return player
 
@@ -67,7 +69,8 @@ class music(commands.Cog):
         elif search:
             audios = await player.add_song(search)
             #except: return await interaction.followup.send(f'It was not possible to find the song: `{search}`') 
-        else: return await interaction.followup.send("You have to specify an audio source. ")
+        else:
+            return await interaction.followup.send("You have to specify an audio source. ")
         for audio in audios:
             audio.extras["requester"] = interaction.user
         metadata: Metadata = audios[0].metadata
@@ -148,12 +151,17 @@ class music(commands.Cog):
             playlist_embeds = [discord.Embed(description="## 📜 Playlist")]
             current_page=0
             for num, track in zip(range(len(queue)), queue):
-                if playlist_embeds[current_page].description.count('\n') > 15: current_page+=1
-                if len(playlist_embeds) < current_page+1: playlist_embeds.append(discord.Embed(description=f"", color=discord.Color.from_rgb(255,255,255)))
+                if playlist_embeds[current_page].description.count('\n') > 15:
+                    current_page+=1
+                if len(playlist_embeds) < current_page+1:
+                    playlist_embeds.append(discord.Embed(description="", color=discord.Color.from_rgb(255,255,255)))
                 if not num:
-                    if vc.is_paused(): num = f'- ⏸ {strftime("%H:%M:%S", gmtime(track.get_position()))} - {strftime("%H:%M:%S", gmtime(track.metadata.length))}\n  - '
-                    else: num = f'- ▶ {strftime("%H:%M:%S", gmtime(track.get_position()))} - {strftime("%H:%M:%S", gmtime(track.metadata.length))}\n  - '
-                else: num=f"{num}. "
+                    if vc.is_paused():
+                        num = f'- ⏸ {strftime("%H:%M:%S", gmtime(track.get_position()))} - {strftime("%H:%M:%S", gmtime(track.metadata.length))}\n  - '
+                    else:
+                        num = f'- ▶ {strftime("%H:%M:%S", gmtime(track.get_position()))} - {strftime("%H:%M:%S", gmtime(track.metadata.length))}\n  - '
+                else:
+                    num=f"{num}. "
                 playlist_embeds[current_page].description += f'\n{num}**{track.metadata.title}**\n-# ↳ {track.metadata.author} • Requested by: {track.extras.get("requester").mention}\n'
             custom_buttons = {
                 "FIRST": PaginatorButton(label=":First Page", position=0),

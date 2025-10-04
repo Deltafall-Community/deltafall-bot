@@ -1,10 +1,5 @@
 import discord
-from discord.utils import get
 from discord.ext import commands
-import time
-from discord.ext import tasks
-import os
-
 import time
 import datetime
 
@@ -36,21 +31,31 @@ class yourenobody(commands.Cog):
         
         flags = Flags()
 
-        if (datetime.datetime.now(datetime.timezone.utc).timestamp() - time.mktime(member.created_at.timetuple())) < 604800: flags.isCreatedRecently = True
+        if (datetime.datetime.now(datetime.timezone.utc).timestamp() - time.mktime(member.created_at.timetuple())) < 604800:
+            flags.isCreatedRecently = True
         if member.public_flags.spammer:
             flags.hasBeenFlaggedAsSpammer = True
-            if len(member.public_flags.all()) - 1 < 1: flags.hasNoBadges = True
-        elif len(member.public_flags.all()) < 1: flags.hasNoBadges = True
-        if not member.avatar or (member.avatar and member.avatar.url == member.default_avatar.url): flags.isUsingDefaultAvatar = True
-        if not member.global_name or (member.global_name and member.global_name == member.name): flags.hasNotSetDisplayName = True
+            if len(member.public_flags.all()) - 1 < 1:
+                flags.hasNoBadges = True
+        elif len(member.public_flags.all()) < 1:
+            flags.hasNoBadges = True
+        if not member.avatar or (member.avatar and member.avatar.url == member.default_avatar.url):
+            flags.isUsingDefaultAvatar = True
+        if not member.global_name or (member.global_name and member.global_name == member.name):
+            flags.hasNotSetDisplayName = True
 
         totalScore = 0
 
-        if flags.isCreatedRecently: totalScore += 30
-        if flags.isUsingDefaultAvatar: totalScore += 30
-        if flags.hasNotSetDisplayName: totalScore += 20
-        if flags.hasBeenFlaggedAsSpammer: totalScore += 10
-        if flags.hasNoBadges: totalScore += 10
+        if flags.isCreatedRecently:
+            totalScore += 30
+        if flags.isUsingDefaultAvatar:
+            totalScore += 30
+        if flags.hasNotSetDisplayName:
+            totalScore += 20
+        if flags.hasBeenFlaggedAsSpammer:
+            totalScore += 10
+        if flags.hasNoBadges:
+            totalScore += 10
 
         summaryString = f"""```
 [{await self.getEmoji(flags.isCreatedRecently)}] (+30) created their account in the last 7 days
@@ -61,7 +66,8 @@ class yourenobody(commands.Cog):
 ```"""
         
         extraMsg = "All clears"
-        if totalScore >= 50: extraMsg = f"This guy (<@{member.id}>) is looking real suspicious, no? <@&1211135690503495740> <@&1220416159573213264>"
+        if totalScore >= 50:
+            extraMsg = f"This guy (<@{member.id}>) is looking real suspicious, no? <@&1211135690503495740> <@&1220416159573213264>"
 
         if totalScore >= 50:
             channel=discord.utils.get(member.guild.channels, id=self.channelid)

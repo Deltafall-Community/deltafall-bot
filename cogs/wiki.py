@@ -1,7 +1,6 @@
 import discord
 from discord.ext import commands
 from discord import app_commands
-from typing import Optional
 from bs4 import BeautifulSoup
 import aiohttp
 import mediawiki
@@ -21,10 +20,12 @@ class wiki(commands.Cog):
         formattedwiki=f"# [{page.title}]({page.url})\n"+formattedwiki
 
         title=None
-        if "SHORTDESC" in wiki[1]: title=wiki[1]["SHORTDESC"][0]
+        if "SHORTDESC" in wiki[1]:
+            title=wiki[1]["SHORTDESC"][0]
         embed=discord.Embed(title=title, description=formattedwiki, color=0x4034eb)
         images=page.images[:-1]
-        if len(images) > 0: embed.set_thumbnail(url=images[0])
+        if len(images) > 0:
+            embed.set_thumbnail(url=images[0])
 
         return embed
 
@@ -47,10 +48,12 @@ class wiki(commands.Cog):
         images = []
         previewImage = "https://static.wikitide.net/deltafallwiki/f/f2/Deltafall_Wiki_logo.png"
         for img in mainContent.find_all("img"):
-            if "class" in img.attrs and img["class"][0] == "mw-file-element" and img["src"] != "https://upload.wikimedia.org/wikipedia/commons/8/80/Wikipedia-logo-v2.svg": images.append(img["src"])
+            if "class" in img.attrs and img["class"][0] == "mw-file-element" and img["src"] != "https://upload.wikimedia.org/wikipedia/commons/8/80/Wikipedia-logo-v2.svg":
+                images.append(img["src"])
         if len(images) > 0:
             imgUrl = images[0]
-            if not imgUrl.startswith('https'): imgUrl = "https:" + imgUrl
+            if not imgUrl.startswith('https'):
+                imgUrl = "https:" + imgUrl
             previewImage = imgUrl
 
         parsed = []
@@ -60,7 +63,8 @@ class wiki(commands.Cog):
                 match n.name:
                     case "p":
                         t = (await self.removecitation(n.text)).strip()
-                        if t != "": content.append(t)
+                        if t != "":
+                            content.append(t)
                     case "blockquote":
                         content.append("\n".join([ f"-# - *{await self.removecitation(quote)}*" for quote in n.text.strip().split("\n") ]))
                     case "ul":
@@ -90,8 +94,10 @@ class wiki(commands.Cog):
         page = self.deltafallwiki.page(searchresults[0])
         embed=None
 
-        try: embed = await self.getwikiembed(page)
-        except: embed = await self.getwikiembedCompat(f"https://deltafall.miraheze.org/wiki/{searchresults[0].replace(" ", "_")}")
+        try:
+            embed = await self.getwikiembed(page)
+        except Exception:
+            embed = await self.getwikiembedCompat(f"https://deltafall.miraheze.org/wiki/{searchresults[0].replace(" ", "_")}")
         await interaction.response.send_message(embed=embed)
     
 async def setup(bot):

@@ -1,8 +1,5 @@
 import discord
 from discord.ext import commands
-from discord import app_commands
-import asyncio
-import random
 
 class messagefun(commands.Cog):
     def __init__(self, bot):

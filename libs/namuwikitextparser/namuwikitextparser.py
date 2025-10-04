@@ -49,15 +49,18 @@ class WikitextParser():
                     case "w":
                         string.text=components[1]
                         string.link=f"https://en.wikipedia.org/wiki/{path_components[1]}"
-                    case "Image": string.hide=True # we do not need in-line image for our use case
-                    case "File": string.hide=True # we do not need in-line file for our use case
+                    case "Image":
+                        string.hide=True # we do not need in-line image for our use case
+                    case "File":
+                        string.hide=True # we do not need in-line file for our use case
             else:
                 string.text=components[1]
                 string.link=f"{baseurl}/{components[0]}"
         elif path_components[0] == "":
             string.text=string.text[1:]
             string.link=f"{baseurl}/{string.text}"
-        else: string.link=f"{baseurl}/{string.text}"
+        else:
+            string.link=f"{baseurl}/{string.text}"
     
     async def parseDirectLink(self, line: List[CustomString], baseUrl: str):
         index=0
@@ -66,7 +69,8 @@ class WikitextParser():
             while True:
                 startref=section.text.find("[[")
                 endref=section.text.find("]]")
-                if startref==-1 or endref==-1: break
+                if startref==-1 or endref==-1:
+                    break
 
                 refLeft=section.text[:startref]
                 refText=section.text[startref+2:][:endref-startref-2]
@@ -82,7 +86,8 @@ class WikitextParser():
                 await self.populatetWikitextUrlPath(section_copy, baseUrl)
                 line.insert(index, section_copy)
                 index+=1
-                if section.text == "": line.pop(index)
+                if section.text == "":
+                    line.pop(index)
             index+=1
 
     async def parseHTMLTags(self, line: List[CustomString]):
@@ -92,14 +97,16 @@ class WikitextParser():
             while True:
                 startingtag=section.text.find("<")
                 endtag=section.text.find(">")
-                if startingtag==-1 or endtag==-1: break
+                if startingtag==-1 or endtag==-1:
+                    break
 
                 tagcontent=section.text[startingtag+1:][:endtag-startingtag-1].strip().split(" ", 1)
                 tagLeft=section.text[:startingtag]
                 section.text = section.text[endtag+1:]
 
                 tagname=None
-                if tagcontent[0]!="":tagname=tagcontent[0]
+                if tagcontent[0]!="":
+                    tagname=tagcontent[0]
 
                 if tagcontent[0]!="" and tagcontent[0][0] == "/":
                     if tagLeft!="":
@@ -141,14 +148,17 @@ class WikitextParser():
                             value=value[beginattr+1:][:endattr-1]
 
                         attrs[attr[0].strip()]=value
-                        if endattr==-1: break
+                        if endattr==-1:
+                            break
                         attrcontent.pop(0)
                         attrcontent.insert(1, attr[1][endattr+1:])
 
                 self.globalTags.append(Tag(tagname, attrs))
-                if section.text == "": line.pop(index)
+                if section.text == "":
+                    line.pop(index)
 
-            if index < len(line): line[index].tags = self.globalTags.copy()
+            if index < len(line):
+                line[index].tags = self.globalTags.copy()
             index+=1
             
     async def parseHeader(self, line: List[CustomString]):
@@ -158,7 +168,8 @@ class WikitextParser():
                 startingheaderchar = None
                 endingheaderchar = None
                 for char, index in zip(text, range(len(text))):
-                    if not startingheaderchar and char != "=" : startingheaderchar = index
+                    if not startingheaderchar and char != "=" :
+                        startingheaderchar = index
                     elif startingheaderchar and char == "=":
                         endingheaderchar = index
                         break
@@ -170,8 +181,10 @@ class WikitextParser():
         if line:
             match line[0].text[:2]:
                 case "# ":
-                    if self.lastList and self.lastList.isNumberedList and (line[0].id - self.lastList.id == 1): self.listCount += 1
-                    else: self.listCount = 1
+                    if self.lastList and self.lastList.isNumberedList and (line[0].id - self.lastList.id == 1):
+                        self.listCount += 1
+                    else:
+                        self.listCount = 1
                     line[0].text=line[0].text[2:].lstrip()
                     for text in line:
                         text.isNumberedList=True
@@ -179,7 +192,8 @@ class WikitextParser():
                     self.lastList = line[-1]
                 case "* ":
                     line[0].text=line[0].text[2:].lstrip()
-                    for text in line: text.isBulletPointList=True
+                    for text in line:
+                        text.isBulletPointList=True
                     self.lastList = line[-1]
 
     async def parseWikitext(self, text: str, baseUrl: str, id: int):
@@ -200,19 +214,25 @@ class WikitextParser():
             line=lines[lineindex].strip()
             match globalWorkingSection:
                 case ParsingSection.CustomData:
-                    if line == "}}": globalWorkingSection=None # wip (not a priorty)
+                    if line == "}}":
+                        globalWorkingSection=None # wip (not a priorty)
                 case _:
                     if line.startswith("{{") and line.endswith("}}"):
-                        try: splitted=line[:-2][2:].split(":")
-                        except: continue
-                        try: customdata[splitted[0]]=[splitted[1]]
-                        except: continue
+                        try:
+                            splitted=line[:-2][2:].split(":")
+                        except Exception:
+                            continue
+                        try:
+                            customdata[splitted[0]]=[splitted[1]]
+                        except Exception:
+                            continue
                     elif line.startswith("{{"):
-                        tempvar = line[2:]
+                        #tempvar = line[2:]
                         globalWorkingSection = ParsingSection.CustomData
                     else:
                         line=await self.parseWikitext(line, baseURL, lineindex)
-                        if len(line)<1: continue
+                        if len(line)<1:
+                            continue
                         line[-1].text+="\n"
                         parsed+=line
         return parsed,customdata

@@ -26,13 +26,18 @@ async def format(wiki: List[namuwikitextparser.CustomString]):
 
     linestr=""
     for string in wiki:
-        if string.hide: continue
+        if string.hide:
+            continue
 
         formatted=string.text
-        if string.link: formatted=f"[{string.text.strip()}]({string.link.replace(" ", "_")})"
-        if string.headerlevel > 1: formatted=f"{''.join("#" for hashtag in range(string.headerlevel-1))} {string.text}"
-        if string.isBulletPointList: formatted=f"- {string.text}"
-        if string.isNumberedList: formatted=f"{string.listNumber}. {string.text}"
+        if string.link:
+            formatted=f"[{string.text.strip()}]({string.link.replace(" ", "_")})"
+        if string.headerlevel > 1:
+            formatted=f"{''.join("#" for hashtag in range(string.headerlevel-1))} {string.text}"
+        if string.isBulletPointList:
+            formatted=f"- {string.text}"
+        if string.isNumberedList:
+            formatted=f"{string.listNumber}. {string.text}"
 
         if string.tags:
             for tag in string.tags:
@@ -43,7 +48,8 @@ async def format(wiki: List[namuwikitextparser.CustomString]):
                         formatted = f"-# {formatted}"
                     case "ref":
                         if "group" in tag.attributes:
-                            if not tag.attributes["group"] in groups: groups[tag.attributes["group"]]=[]
+                            if tag.attributes["group"] not in groups:
+                                groups[tag.attributes["group"]]=[]
                             if lastgroupstring and string.id == lastgroupstring.id:
                                 groups[tag.attributes["group"]][-1] += formatted
                             else:
@@ -52,7 +58,8 @@ async def format(wiki: List[namuwikitextparser.CustomString]):
 
                             lastgroupstring = string
                             continue
-                        if string.text.startswith("http") and not string.link: formatted = f" *[[ref]]({string.text})* "
+                        if string.text.startswith("http") and not string.link:
+                            formatted = f" *[[ref]]({string.text})* "
 
         linestr+=formatted
     linestr=linestr.strip()

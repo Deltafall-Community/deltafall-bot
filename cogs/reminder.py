@@ -33,7 +33,8 @@ class reminder(commands.Cog):
     async def createreminder(self, interaction: discord.Interaction, on: str, message: Optional[str]):
         await interaction.response.defer()
         on: datetime = dateparser.parse(on)
-        if on.timestamp() < time.time(): on = datetime.fromtimestamp(time.time()+(time.time()-on.timestamp()))
+        if on.timestamp() < time.time():
+            on = datetime.fromtimestamp(time.time()+(time.time()-on.timestamp()))
         reminder = Reminder(interaction.channel.id, interaction.user.id, message)
         await self.scheduler.add_payload(interaction.guild.id, on, reminder)
         await interaction.followup.send(f"Reminder{": `"+message+"` " if message is not None else " "}going off <t:{str(int(on.timestamp()))}:R>.")
