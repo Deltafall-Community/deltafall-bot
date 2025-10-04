@@ -3,7 +3,6 @@ from enum import Enum
 from typing import Awaitable
 from typing import Any
 from typing import Optional
-from dataclasses import dataclass
 from asyncinit import asyncinit
 from datetime import datetime
 import math
@@ -64,11 +63,14 @@ class YTDLPAudio(discord.AudioSource):
         self.executor = ThreadPoolExecutor()
         self.read_ffmpeg_future = None
         self.event_loop = asyncio.get_running_loop()
-        if type(url) == Metadata: self.metadata = url
+        if type(url) is Metadata:
+            self.metadata = url
         else:
             self.metadata = Metadata()
-            if streamable: self.metadata.stream_url = await self.event_loop.run_in_executor(None, self.get_source_url, url)
-            else: self.metadata.stream_url = url
+            if streamable:
+                self.metadata.stream_url = await self.event_loop.run_in_executor(None, self.get_source_url, url)
+            else:
+                self.metadata.stream_url = url
 
         if not streamable:
             self.metadata.title = urlparse(url).path.split("/")[-1]
@@ -78,15 +80,18 @@ class YTDLPAudio(discord.AudioSource):
         self.packets = []
         self.total_rms = 0
 
-        if cache_on_init: await self.start_caching()
+        if cache_on_init:
+            await self.start_caching()
         
     async def start_caching(self, reset_stream_url: bool = False) -> None:
         self.status = Status.LOADING
         samples_per_second = 48000
         channels = 2
         
-        if reset_stream_url: self.metadata.stream_url = None
-        if not self.metadata.stream_url: self.metadata.stream_url = await self.event_loop.run_in_executor(None, self.get_source_url, self.metadata.url) 
+        if reset_stream_url:
+            self.metadata.stream_url = None
+        if not self.metadata.stream_url:
+            self.metadata.stream_url = await self.event_loop.run_in_executor(None, self.get_source_url, self.metadata.url) 
         
         if self.streamable:
             self.ffmpeg_process = (
@@ -104,11 +109,13 @@ class YTDLPAudio(discord.AudioSource):
             )
 
         self.lock = threading.Lock()
-        if not self.streamable: self.event_loop.create_task(self.input_ffmpeg())
+        if not self.streamable:
+            self.event_loop.create_task(self.input_ffmpeg())
         self.read_ffmpeg_future = self.event_loop.run_in_executor(self.executor, self.read_ffmpeg)
         # wait for the data the reach 1 second of audio (else the read function will end immediately)
         while len(self.packets) < 50:
-            if self.status == Status.FAILED: break
+            if self.status == Status.FAILED:
+                break
             await asyncio.sleep(1.0)
         if self.status != Status.FAILED and self.on_loading_finished:
             await self.on_loading_finished(self)
@@ -120,49 +127,64 @@ class YTDLPAudio(discord.AudioSource):
             # we have to use `run_coroutine_threadsafe`
             future=asyncio.run_coroutine_threadsafe(self.on_start(self), self.event_loop)
             if wait:
-                try: future.result()
-                except Exception: traceback.print_exc()
+                try:
+                    future.result()
+                except Exception:
+                    traceback.print_exc()
     def finished(self, wait: bool = True) -> None:
         if self.on_finished:
             # since this function gets run by discord.py on the different thread
             # we have to use `run_coroutine_threadsafe`
             future=asyncio.run_coroutine_threadsafe(self.on_finished(self), self.event_loop)
             if wait:
-                try: future.result()
-                except Exception: traceback.print_exc()
+                try:
+                    future.result()
+                except Exception:
+                    traceback.print_exc()
     
     def clean_up(self):
-        try: self.ffmpeg_process.terminate()
-        except: pass
-        if self.read_ffmpeg_future: self.read_ffmpeg_future.cancel()
+        try:
+            self.ffmpeg_process.terminate()
+        except Exception:
+            pass
+        if self.read_ffmpeg_future:
+            self.read_ffmpeg_future.cancel()
         self.executor.shutdown(wait=False, cancel_futures=True)
         self.packets.clear()
 
-        if self.on_clean_up: self.on_clean_up(self)
+        if self.on_clean_up:
+            self.on_clean_up(self)
 
     def failed(self) -> None:
         if self.on_failed:
             future=asyncio.run_coroutine_threadsafe(self.on_failed(self), self.event_loop)
-            try: future.result()
-            except Exception: traceback.print_exc()
+            try:
+                future.result()
+            except Exception:
+                traceback.print_exc()
 
     def read_event(self, packet: bytes) -> Optional[bytes]:
-        if self.on_read: return self.on_read(self, packet)
+        if self.on_read:
+            return self.on_read(self, packet)
 
     async def input_ffmpeg(self) -> None:
         async with aiohttp.ClientSession() as session:
             async with session.get(self.metadata.stream_url) as response:
                 async for byte in response.content:
-                    try: self.ffmpeg_process.stdin.write(byte)
-                    except: break
+                    try:
+                        self.ffmpeg_process.stdin.write(byte)
+                    except Exception:
+                        break
         self.ffmpeg_process.stdin.close()
     def read_ffmpeg(self) -> None:
         end_silence=None
         start_silence=None
         while True:
             pcm = self.ffmpeg_process.stdout.read(3840)
-            if not pcm: break
-            if len(pcm) < 3840:pcm += b"\x00" * (3840 - len(pcm))
+            if not pcm:
+                break
+            if len(pcm) < 3840:
+                pcm += b"\x00" * (3840 - len(pcm))
             with self.lock:
                 # discord only accepts mono audio so doing this actually saves some memory
                 pcm = audioop.tomono(pcm, 2, 0.5, 0.5) 
@@ -177,8 +199,10 @@ class YTDLPAudio(discord.AudioSource):
                     end_silence=None
                 self.total_rms += rms
         if self.packets:
-            if end_silence: self.packets=self.packets[:end_silence]
-            if start_silence: self.packets=self.packets[start_silence:]
+            if end_silence:
+                self.packets=self.packets[:end_silence]
+            if start_silence:
+                self.packets=self.packets[start_silence:]
             self.metadata.length = len(self.packets)*0.02
             self.status = Status.FINISHED
         else:
@@ -189,8 +213,10 @@ class YTDLPAudio(discord.AudioSource):
         ydl_opts = {'format': 'bestaudio/best', 'noplaylist': True , 'quiet': True} 
         ydl = yt_dlp.YoutubeDL(ydl_opts)
         
-        if urlparse(search).netloc != '': info = ydl.extract_info(search, download=False)
-        else: info = ydl.extract_info(f"ytsearch1:{search}", download=False).get("entries")[0]
+        if urlparse(search).netloc != '':
+            info = ydl.extract_info(search, download=False)
+        else:
+            info = ydl.extract_info(f"ytsearch1:{search}", download=False).get("entries")[0]
 
         return self.parse_from_ytdlp_dict(info)
 
@@ -201,11 +227,13 @@ class YTDLPAudio(discord.AudioSource):
         self.metadata.title=ytdlp_dict.get("title")
         self.metadata.url=ytdlp_dict.get("webpage_url") 
         created_on=ytdlp_dict.get("timestamp")
-        if created_on: self.metadata.created_on = datetime.fromtimestamp(created_on)
+        if created_on:
+            self.metadata.created_on = datetime.fromtimestamp(created_on)
         self.metadata.length=ytdlp_dict.get("duration")
 
         platform = ytdlp_dict.get("extractor")
-        if platform: platform = platform.lower()
+        if platform:
+            platform = platform.lower()
 
         match platform:
             case "youtube" | "soundcloud" | "bandcamp":
@@ -220,13 +248,14 @@ class YTDLPAudio(discord.AudioSource):
         return url
 
     def read(self) -> bytes:
-        if not self.status in (Status.CACHING, Status.FINISHED):
+        if self.status not in (Status.CACHING, Status.FINISHED):
             self.playback_state = PlaybackState.NOT_PLAYING
             return
 
         self.packet_index += 1
         if self.packet_index > len(self.packets):
-            if self.playback_state == PlaybackState.FINISHED: return b''
+            if self.playback_state == PlaybackState.FINISHED:
+                return b''
             if not self.loop:
                 if not self.playback_state == PlaybackState.TRANSITIONING:
                     self.playback_state = PlaybackState.FINISHED
@@ -243,11 +272,14 @@ class YTDLPAudio(discord.AudioSource):
         # e.g. custom effects
         try:
             motified_packet = self.read_event(packet)
-            if motified_packet: packet = motified_packet
-        except Exception: traceback.print_exc()
+            if motified_packet:
+                packet = motified_packet
+        except Exception:
+            traceback.print_exc()
 
         # this gets sent here because the `PlaybackState` doesnt get applied until the player sets it 
-        if self.packet_index == 1: self.start(False)
+        if self.packet_index == 1:
+            self.start(False)
 
         return packet
 
@@ -260,6 +292,8 @@ class YTDLPAudio(discord.AudioSource):
     def set_loop(self, bool: bool) -> None:
         self.loop = bool
 
+    # FIXME: find a better way to do this
     def seek(self, position: int):
-        while len(self.packets) * 0.02 < position: pass
+        while len(self.packets) * 0.02 < position:
+            pass
         self.packet_index = (math.floor(position / 0.02))

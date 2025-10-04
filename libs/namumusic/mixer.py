@@ -7,20 +7,26 @@ class Mixer(discord.AudioSource):
 
     def get_channel(self, channel_str: str):
         channel = self.channels.get(channel_str)
-        if channel: return channel
-        else: channel = []
+        if channel:
+            return channel
+        else:
+            channel = []
         self.channels[channel_str] = channel
         return channel
 
     def add_audio_source(self, channel_str: str, audio: discord.AudioSource) -> None:
         channel = self.get_channel(channel_str)
-        try: channel.append(audio)
-        except Exception as e: print(f"Mixer {id(self)} Exception While Appending: {e}")
+        try:
+            channel.append(audio)
+        except Exception as e:
+            print(f"Mixer {id(self)} Exception While Appending: {e}")
 
     def remove_audio_source(self, channel_str: str, audio: discord.AudioSource) -> None:
         channel = self.get_channel(channel_str)
-        try: channel.remove(audio)
-        except Exception as e: print(f"Mixer {id(self)} Exception While Removing: {e}")
+        try:
+            channel.remove(audio)
+        except Exception as e:
+            print(f"Mixer {id(self)} Exception While Removing: {e}")
 
     def mix_pcm_16bit(self, pcm1: bytes, pcm2: bytes) -> bytes:
         mixed_pcm = bytearray()
@@ -46,12 +52,17 @@ class Mixer(discord.AudioSource):
                 audio_source = channel[audio_source_index]
                 audio_source_output = audio_source.read()
                 if audio_source_output == b'':
-                    try: del channel[audio_source_index]
-                    except Exception as e: print(f"Mixer {id(self)} Exception While Removing From Channel: {e}")
+                    try:
+                        del channel[audio_source_index]
+                    except Exception as e:
+                        print(f"Mixer {id(self)} Exception While Removing From Channel: {e}")
                     continue
-                if output: output = self.mix_pcm_16bit(output, audio_source_output)
-                else: output = audio_source_output
-        if not output: output = b"\x00" * 3840
+                if output:
+                    output = self.mix_pcm_16bit(output, audio_source_output)
+                else:
+                    output = audio_source_output
+        if not output:
+            output = b"\x00" * 3840
         return output
     
     def is_opus(self):
