@@ -1,6 +1,6 @@
 [![discord.py](https://img.shields.io/badge/discord.py-white?logo=discord&style=flat-square)](https://github.com/Rapptz/discord.py)
 [![deltafall](https://img.shields.io/badge/deltafall-white?logo=discord&style=flat-square)](https://discord.gg/hT3HtPSwth)
-![GitHub top language](https://img.shields.io/github/languages/top/45-razrblds/YAMB-fixed?style=flat-square&labelColor=white&color=white)
+![GitHub top language](https://img.shields.io/github/languages/top/Deltafall-Community/deltafall-bot?style=flat-square&labelColor=white&color=white)
 
 # deltafall-bot
 > also known as Deltaballin
