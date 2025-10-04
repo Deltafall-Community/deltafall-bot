@@ -22,14 +22,33 @@ handler = logging.StreamHandler(sys.stdout)
 handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
 logger.addHandler(handler)
 
+default_config_content = """{
+    "token": "",
+    "prefix": "!",
+    "sqlitecloud-quote": "",
+    "sqlitecloud-club": ""
+}
+"""
+
+# get bot config from file 
+# this will be accessible through out the whole bot
+try:
+    config = json.load(open("config.json", "r"))
+except FileNotFoundError:
+    file = open("config.json", "x")
+    file.write(default_config_content)
+    file.close()
+    logger.info("A new config file has been created (config.json), Please include your bot token in the config file.")
+    sys.exit()
+
+if not config.get("token"):
+    logger.error("Invaild token.")
+    sys.exit()
+
 class Bot(commands.Bot):
     def __init__(self):
+        self.config = config
         self.cogsfolder = "cogs"
-
-        # Get bot config from file 
-        # this will be accessible through out the whole bot
-        with open("config.json", "r") as file:
-            self.config = json.load(file)
 
         self.token = self.config["token"]
         self.quote_db = self.connect_quote_db()
