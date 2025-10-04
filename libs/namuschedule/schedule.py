@@ -1,5 +1,4 @@
-from enum import Enum
-from typing import Optional, List, ClassVar, Dict, Protocol, Any, Callable, Awaitable
+from typing import ClassVar, Dict, Protocol, Any, Callable, Awaitable
 from dataclasses import field
 from dataclasses import make_dataclass
 from dataclasses import dataclass
@@ -62,23 +61,27 @@ class Schedule():
                     self.reset_event.clear()
                     continue
                 
-                if not target_payload.attrs: target_payload.attrs = self.__get_attrs(self.check_connection(), target_payload.reference)
+                if not target_payload.attrs:
+                    target_payload.attrs = self.__get_attrs(self.check_connection(), target_payload.reference)
                 decoded_payload=self.decode_payload(target_payload)
                 subscribers=self.subscribers.get(target_payload.name)
                 if subscribers:
-                    for subscriber in subscribers: asyncio.run_coroutine_threadsafe(subscriber(decoded_payload), self.loop)
+                    for subscriber in subscribers:
+                        asyncio.run_coroutine_threadsafe(subscriber(decoded_payload), self.loop)
                 self.__delete_payload_db(self.check_connection(), target_payload)
                 del self.payloads[0]        
 
     def subscribe(self, object_name: str, callback: Callable[['Payload'], Awaitable[Any]]):
-        if not self.subscribers.get(object_name): self.subscribers[object_name] = []
+        if not self.subscribers.get(object_name):
+            self.subscribers[object_name] = []
         self.subscribers[object_name].append(callback)
 
     def connect_db(self):
         try:
             if self.is_sqlitecloud:
                 return sqlitecloud.connect(self.db_connect_str)
-            else: return sqlite3.connect(self.db_connect_str, check_same_thread=False)
+            else:
+                return sqlite3.connect(self.db_connect_str, check_same_thread=False)
         except Exception as e:
             print(f"Failed to connect to Schedule Database.. (Reason: {e})") 
 
@@ -121,7 +124,8 @@ class Schedule():
     def __add_payload_db(self, connection, table, trigger_on: datetime, object: Dataclass):
         attrs: dict = {}
         name: str = type(object).__name__
-        for key, value in asdict(object).items(): attrs[key]=repr(value)
+        for key, value in asdict(object).items():
+            attrs[key]=repr(value)
 
         payload_keys=tuple(attrs.keys())
         payload_sqlite_values=str(payload_keys).replace("'", "")
@@ -152,6 +156,7 @@ class Schedule():
 
     def decode_payload(self, payload: Payload) -> Dataclass:
         attrs={}
-        for key, value in payload.attrs.items(): attrs[key]=eval(value)
+        for key, value in payload.attrs.items():
+            attrs[key]=eval(value)
         decoded=make_dataclass(payload.name, attrs)
         return decoded(**attrs)
