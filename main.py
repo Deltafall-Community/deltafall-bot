@@ -13,7 +13,7 @@ import time
 import sqlitecloud
 import plyvel
 
-from libs.namuschedule.schedule import Schedule
+from libs.namuscheduler.scheduler import Scheduler
 from libs.namuphishingdetection.phishingdetector import PhishingDetector
 
 logger = logging.getLogger('discord')
@@ -63,10 +63,7 @@ class Bot(commands.Bot):
         self.phishing_detector = await PhishingDetector(logger)
 
     async def get_scheduler(self):
-        if self.config.get("sqlitecloud-schedule"):
-            self.scheduler = await Schedule(self.config["sqlitecloud-schedule"], True)
-        else:
-            self.scheduler = await Schedule("schedule.db")
+        self.scheduler = await Scheduler(sqlitecloud_schedule, True) if (sqlitecloud_schedule := self.config.get("sqlitecloud-schedule")) else await Scheduler("schedule.db")
 
     def connect_quote_db(self):
         try:

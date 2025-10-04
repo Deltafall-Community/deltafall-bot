@@ -30,7 +30,7 @@ class Payload:
     attrs: dict = field(default_factory=dict)
 
 @asyncinit
-class Schedule():
+class Scheduler():
     async def __init__(self, database: str, is_sqlitecloud: bool = False):
         self.is_sqlitecloud = is_sqlitecloud
         self.db_connect_str=database
@@ -96,8 +96,7 @@ class Schedule():
         return self.db
                 
     async def get_connection(self):
-        self.event_loop = asyncio.get_running_loop()
-        return await self.event_loop.run_in_executor(None, self.check_connection)
+        return await self.loop.run_in_executor(None, self.check_connection)
     
     def __get_attrs(self, connection, row_reference: RowReference):
         cur = connection.cursor()
@@ -129,7 +128,7 @@ class Schedule():
 
         payload_keys=tuple(attrs.keys())
         payload_sqlite_values=str(payload_keys).replace("'", "")
-        payload_table=f'{table}.{name}'
+        payload_table=f"{table}.{name}"
         cur = connection.cursor()
         cur.execute(f"CREATE TABLE IF NOT EXISTS '{payload_table}'{payload_sqlite_values}")
         cur.execute(f"""
@@ -146,9 +145,17 @@ class Schedule():
         connection.commit()
         return Payload(name, trigger_on, row, attrs)
     
+    async def get_all_payloads_from_table(self, table: str, object: type):
+        name: str = object.__name__
+        payloads = []
+        for payload in self.payloads:
+            if payload.reference.table == f"{table}.{name}" and not payload.attrs:
+                payload.attrs = await self.loop.run_in_executor(None, self.__get_attrs, await self.get_connection(), payload.reference)
+            payloads.append(payload)
+        return payloads
+    
     async def add_payload(self, table: str, trigger_on: datetime, object: Dataclass):
-        loop=asyncio.get_running_loop()
-        payload=await loop.run_in_executor(None, self.__add_payload_db, await self.get_connection(), table, trigger_on, object)
+        payload=await self.loop.run_in_executor(None, self.__add_payload_db, await self.get_connection(), table, trigger_on, object)
         self.payloads.append(payload)
         self.payloads.sort(key=lambda p: p.trigger_on.timestamp())
         self.reset_event.set()
