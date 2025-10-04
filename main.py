@@ -33,7 +33,6 @@ class Bot(commands.Bot):
 
         self.token = self.config["token"]
         self.quote_db = self.connect_quote_db()
-        self.club_db = self.connect_club_db()
         self.scheduler = None
         self.phishing_detector = None
         self.valentine_lvl_db = plyvel.DB('valentine', create_if_missing=True)
@@ -58,15 +57,6 @@ class Bot(commands.Bot):
                 return sqlite3.connect("quotes.db", check_same_thread=False)
         except Exception as e:
             logger.error(f"Failed to connect to Quote Database.. (Reason: {e})") 
-
-    def connect_club_db(self):
-        try:
-            if self.config.get("sqlitecloud-club"):
-                return sqlitecloud.connect(self.config["sqlitecloud-club"])
-            else:
-                return sqlite3.connect("clubs.db", check_same_thread=False)
-        except Exception as e:
-            logger.error(f"Failed to connect to Club Database.. (Reason: {e})") 
 
     async def load_extensions(self):
         for file in os.listdir(self.cogsfolder):
