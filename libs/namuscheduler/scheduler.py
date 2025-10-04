@@ -69,7 +69,7 @@ class Scheduler():
                     for subscriber in subscribers:
                         asyncio.run_coroutine_threadsafe(subscriber(decoded_payload), self.loop)
                 self.__delete_payload_db(self.check_connection(), target_payload)
-                del self.payloads[0]        
+                del self.payloads[0]
 
     def subscribe(self, object_name: str, callback: Callable[['Payload'], Awaitable[Any]]):
         if not self.subscribers.get(object_name):
@@ -160,6 +160,10 @@ class Scheduler():
         self.payloads.sort(key=lambda p: p.trigger_on.timestamp())
         self.reset_event.set()
         return payload
+
+    async def delete_payload(self, target_payload: Payload):
+        await self.loop.run_in_executor(None, self.__delete_payload_db, await self.get_connection(), target_payload)
+        self.payloads.remove(target_payload)
 
     def decode_payload(self, payload: Payload) -> Dataclass:
         attrs={}

@@ -1,13 +1,15 @@
 import discord
 from discord.ext import commands
 from discord import app_commands
-from typing import Optional
+from typing import Optional, List
+from rapidfuzz import fuzz, process
 from dataclasses import dataclass
+import humanize
 
 from discord.ext.paginators.button_paginator import ButtonPaginator, PaginatorButton
 
 import dateparser
-from libs.namuscheduler.scheduler import Scheduler
+from libs.namuscheduler.scheduler import Scheduler, Payload
 from datetime import datetime
 import time
 
@@ -27,7 +29,8 @@ class Reminder:
     message: Optional[str] = None
 
 @dataclass
-class TimestampedReminder:
+class PayloadReminder:
+    id: int
     timestamp: datetime
     reminder: Reminder
 
@@ -37,11 +40,20 @@ class ReminderCommand(commands.Cog):
         self.scheduler: Scheduler = self.bot.scheduler
         self.scheduler.subscribe("Reminder", self.on_remind_end)
 
+    async def reminder_autocomplete(self, interaction: discord.Interaction, current: str) -> List[app_commands.Choice[str]]:
+        payloads: List[Payload] = await self.scheduler.get_all_payloads_from_table(interaction.guild.id, Reminder)
+        matches = process.extract(
+            current,
+            [app_commands.Choice(name=f"{rm if (rm := reminder.message) else "No Message."} - {humanize.naturaltime(datetime.now() - payload.trigger_on)}", value=str(payload.reference.id)) for payload in payloads if (reminder := self.scheduler.decode_payload(payload)).author_id == interaction.user.id],
+            scorer=fuzz.ratio,
+            processor=lambda c: getattr(c, "name", str(c)),
+        )
+        return [reminder for reminder, score, _ in matches][:5]
+
     async def on_remind_end(self, reminder: Reminder):
         bot: discord.Client = self.bot
-        allowed_mentions = discord.AllowedMentions()
-        allowed_mentions.everyone=False
-        await bot.get_channel(reminder.channel_id).send(f"{bot.get_user(reminder.author_id).mention} Reminder{": `"+reminder.message+"`" if reminder.message is not None else ""}", allowed_mentions=allowed_mentions)
+        user: discord.User = bot.get_user(reminder.author_id)
+        await bot.get_channel(reminder.channel_id).send(f"{user.mention} Reminder{f": {reminder.message}" if reminder.message else ""}", allowed_mentions=discord.AllowedMentions(users=[user], everyone=False, roles=False))
 
     group = app_commands.Group(name="remind", description="remind you")
 
@@ -53,7 +65,7 @@ class ReminderCommand(commands.Cog):
             on = datetime.fromtimestamp(time.time()+(time.time()-on.timestamp()))
         reminder = Reminder(interaction.channel.id, interaction.user.id, message)
         await self.scheduler.add_payload(interaction.guild.id, on, reminder)
-        await interaction.followup.send(f"Reminder{": `"+message+"` " if message is not None else " "}going off <t:{str(int(on.timestamp()))}:R>.")
+        await interaction.followup.send(f"Reminder{f": {message} " if message else " "}going off <t:{str(int(on.timestamp()))}:R>.", allowed_mentions=discord.AllowedMentions(users=[interaction.user], everyone=False, roles=False))
 
     @group.command(name="list", description="lists reminders")
     async def list_reminder(self, interaction: discord.Interaction):
@@ -62,14 +74,28 @@ class ReminderCommand(commands.Cog):
         current_page=0
         for payload in await self.scheduler.get_all_payloads_from_table(interaction.guild.id, Reminder):
             if (reminder := self.scheduler.decode_payload(payload)).author_id == interaction.user.id:
-                reminder = TimestampedReminder(payload.trigger_on, reminder)
+                reminder = PayloadReminder(payload.reference.id, payload.trigger_on, reminder)
                 if reminder_embeds[current_page].description.count('\n') > 9:
                     current_page+=1
                 if len(reminder_embeds) < current_page+1:
                     reminder_embeds.append(discord.Embed(description="", color=discord.Color.from_rgb(255,255,255)))
-                reminder_embeds[current_page].description += f'\n- **`{reminder.reminder.message}`** <t:{str(int(reminder.timestamp.timestamp()))}:R>\n'
+                reminder_embeds[current_page].description += f'\n- {f"**`{rm}`**" if (rm := reminder.reminder.message) else "*No Message.*"}\n-# ↳ **<t:{str(int(reminder.timestamp.timestamp()))}:R>** • **ID: `{reminder.id}`**'
         paginator = ButtonPaginator(reminder_embeds, author_id=interaction.user.id, buttons=paginator_buttons)
         return await paginator.send(interaction, override_page_kwargs=True, ephemeral=True)
+
+    @group.command(name="delete", description="deletes reminder")
+    @app_commands.autocomplete(search=reminder_autocomplete)
+    async def delete_reminder(self, interaction: discord.Interaction, search: Optional[str], id: Optional[int]):
+        await interaction.response.defer()
+        if search:
+            id = int(search)
+        elif not id:
+            return await interaction.followup.send("Please specify an input.", ephemeral=True)
+        for payload in await self.scheduler.get_all_payloads_from_table(interaction.guild.id, Reminder):
+            if payload.reference.id == id and self.scheduler.decode_payload(payload).author_id == interaction.user.id:
+                await self.scheduler.delete_payload(payload)
+                return await interaction.followup.send(f"Deleted Reminder ID {id}.", ephemeral=False, allowed_mentions=discord.AllowedMentions.none())
+        return await interaction.followup.send("Invaild Reminder.", ephemeral=False, allowed_mentions=discord.AllowedMentions.none())
 
 async def setup(bot):
     await bot.add_cog(ReminderCommand(bot))
