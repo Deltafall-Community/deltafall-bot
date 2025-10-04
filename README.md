@@ -29,14 +29,14 @@ pip install -r requirement.txt
 ```
 #### configuring the config file
 > [!IMPORTANT]
-> to run the bot you MUST do this step or it will not work.
+> a bot token is required to run this.
 >
-starting by copying the `config.json.example` and renaming it to `config.json`
-
-<sub>if you have a gui file manager this step can also be done by using the file manager</sub>
+start by running the `main.py` for the first time
 ```shell
-cp config.json.example config.json
+python main.py
 ```
+a config file will be created in the working directory.
+
 edit the `config.json` file
 
 <sup>you can use whatever text editor you like in this case we will be using `nano`</sup>
@@ -75,6 +75,7 @@ python main.py
 | **speechbubble** | Adds a reaction transparent speech bubble to an image.                                             | `image:` The image you want to add the speech bubble to                                                                    |
 | **stat**       | Lists stats about the server.                                                                        | -                                                                                                                         |
 | **textbox**    | Creates a highly customizable Undertale/Deltarune style textbox.                                     | `text:` The body text of the textbox<br>`name:` The displayed name on the textbox<br>`asterisk:` Adds an asterisk to the start of the textbox, makes it more authentic to some UT characters<br>`portrait:` Allows you to pick between a collection of UT/DR characters for the textbox<br>`animated:` Animates the textbox into a GIF to replicate a UT/DR textbox<br>`custom_portrait:` Allows you to add a custom image to the textbox |
+
 
 
 
