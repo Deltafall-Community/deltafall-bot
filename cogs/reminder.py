@@ -4,6 +4,8 @@ from discord import app_commands
 from typing import Optional, List
 from rapidfuzz import fuzz, process
 from dataclasses import dataclass
+
+import textwrap
 import humanize
 
 from discord.ext.paginators.button_paginator import ButtonPaginator, PaginatorButton
@@ -44,7 +46,7 @@ class ReminderCommand(commands.Cog):
         payloads: List[Payload] = await self.scheduler.get_all_payloads_from_table(interaction.guild.id, Reminder)
         matches = process.extract(
             current,
-            [app_commands.Choice(name=f"{rm if (rm := reminder.message) else "No Message."} - {humanize.naturaltime(datetime.now() - payload.trigger_on)}", value=str(payload.reference.id)) for payload in payloads if (reminder := self.scheduler.decode_payload(payload)).author_id == interaction.user.id],
+            [app_commands.Choice(name=f"{rm if (rm := textwrap.shorten(reminder.message, 50)) else "No Message."} - {humanize.naturaltime(datetime.now() - payload.trigger_on)}", value=str(payload.reference.id)) for payload in payloads if (reminder := self.scheduler.decode_payload(payload)).author_id == interaction.user.id],
             scorer=fuzz.ratio,
             processor=lambda c: getattr(c, "name", str(c)),
         )

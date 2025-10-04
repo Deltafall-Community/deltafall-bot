@@ -200,7 +200,7 @@ class ClubCommand(commands.Cog):
     async def clubs_autocomplete(self, interaction: discord.Interaction, current: str) -> List[app_commands.Choice[str]]:
         matches = process.extract(
             current,
-            [app_commands.Choice(name=f"{club.name} - {(await self.club_manager.get_member(interaction, club.leader)).name}", value=str(club.leader)) for club in self.clubs_cache[interaction.guild.id]],
+            [app_commands.Choice(name=f"{textwrap.shorten(club.name, 50)} - {(await self.club_manager.get_member(interaction, club.leader)).name}", value=str(club.leader)) for club in self.clubs_cache[interaction.guild.id]],
             scorer=fuzz.ratio,
             processor=lambda c: getattr(c, "name", str(c)),
         )
