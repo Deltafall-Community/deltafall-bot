@@ -1,12 +1,9 @@
 from typing import ClassVar, Dict, Protocol, Any, Callable, Awaitable
-from dataclasses import field
-from dataclasses import make_dataclass
-from dataclasses import dataclass
-from dataclasses import asdict
+from dataclasses import field, make_dataclass, dataclass, asdict
 from datetime import datetime
 import time
-from threading import Thread
-from threading import Event
+import traceback
+from threading import Thread, Event
 
 import sqlite3
 import sqlitecloud
@@ -67,7 +64,11 @@ class Scheduler():
                 subscribers=self.subscribers.get(target_payload.name)
                 if subscribers:
                     for subscriber in subscribers:
-                        asyncio.run_coroutine_threadsafe(subscriber(decoded_payload), self.loop)
+                        future = asyncio.run_coroutine_threadsafe(subscriber(decoded_payload), self.loop)
+                    try:
+                        future.result()
+                    except Exception:
+                        traceback.print_exc()
                 self.__delete_payload_db(self.check_connection(), target_payload)
                 del self.payloads[0]
 
