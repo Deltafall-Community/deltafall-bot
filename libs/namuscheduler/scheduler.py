@@ -150,9 +150,10 @@ class Scheduler():
         name: str = object.__name__
         payloads = []
         for payload in self.payloads:
-            if payload.reference.table == f"{table}.{name}" and not payload.attrs:
-                payload.attrs = await self.loop.run_in_executor(None, self.__get_attrs, await self.get_connection(), payload.reference)
-            payloads.append(payload)
+            if payload.reference.table == f"{table}.{name}":
+                if not payload.attrs:
+                    payload.attrs = await self.loop.run_in_executor(None, self.__get_attrs, await self.get_connection(), payload.reference)
+                payloads.append(payload)
         return payloads
     
     async def add_payload(self, table: str, trigger_on: datetime, object: Dataclass):
