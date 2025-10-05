@@ -52,10 +52,31 @@ class ReminderCommand(commands.Cog):
         )
         return [reminder for reminder, score, _ in matches][:5]
 
+    async def get_user(self, client: discord.Client, id: int):
+        # look in the cache first, if user doesn't exist try fetching it.
+        user = client.get_user(id)
+        if not user:
+            try:
+                user = await client.fetch_user(id)
+            except discord.errors.NotFound:
+                pass
+        return user
+    
+    async def get_channel(self, client: discord.Client, id: int):
+        # look in the cache first, if channel doesn't exist try fetching it.
+        channel = client.get_channel(id)
+        if not channel:
+            try:
+                channel = await client.fetch_channel(id)
+            except discord.errors.NotFound:
+                pass
+        return channel
+
     async def on_remind_end(self, reminder: Reminder):
-        bot: discord.Client = self.bot
-        user: discord.User = bot.get_user(reminder.author_id)
-        await bot.get_channel(reminder.channel_id).send(f"{user.mention} Reminder{f": {reminder.message}" if reminder.message else ""}", allowed_mentions=discord.AllowedMentions(users=[user], everyone=False, roles=False))
+        user: discord.User = await self.get_user(self.bot, reminder.author_id)
+        source = channel if (channel := await self.get_channel(self.bot, reminder.channel_id)) else user
+        if source:
+            await source.send(f"{user.mention} Reminder{f": {reminder.message}" if reminder.message else ""}", allowed_mentions=discord.AllowedMentions(users=[user], everyone=False, roles=False))
 
     group = app_commands.Group(name="remind", description="remind you")
 
@@ -81,7 +102,7 @@ class ReminderCommand(commands.Cog):
                     current_page+=1
                 if len(reminder_embeds) < current_page+1:
                     reminder_embeds.append(discord.Embed(description="", color=discord.Color.from_rgb(255,255,255)))
-                reminder_embeds[current_page].description += f'\n- {f"**`{rm}`**" if (rm := reminder.reminder.message) else "*No Message.*"}\n-# ↳ **<t:{str(int(reminder.timestamp.timestamp()))}:R>** • **ID: `{reminder.id}`**'
+                reminder_embeds[current_page].description += f'\n- {f"**`{rm}`**" if (rm := reminder.reminder.message) else "*No Message.*"}\n-# ↳ **<t:{str(int(reminder.timestamp.timestamp()))}:R>** • <#{reminder.reminder.channel_id}> • **ID: `{reminder.id}`**'
         paginator = ButtonPaginator(reminder_embeds, author_id=interaction.user.id, buttons=paginator_buttons)
         return await paginator.send(interaction, override_page_kwargs=True, ephemeral=True)
 
