@@ -54,8 +54,6 @@ class ClubManager():
         self.db_connect_str=database
         self.db=self.connect_db()
 
-        self.event_loop = asyncio.get_running_loop()
-
     def connect_db(self):
         try:
             if self.is_sqlitecloud:
@@ -76,13 +74,16 @@ class ClubManager():
         return self.db
                 
     async def get_connection(self):
-        return await self.event_loop.run_in_executor(None, self.check_connection)
+        return await asyncio.get_running_loop().run_in_executor(None, self.check_connection)
 
     async def get_member(self, interaction: discord.Interaction, id: int):
         # look in the cache first, if member doesn't exist try fetching it.
         member=interaction.guild.get_member(id)
         if not member:
-            member = await interaction.client.fetch_user(id)
+            try:
+                member = await interaction.client.fetch_user(id)
+            except discord.errors.NotFound:
+                pass
         if not member:
             return DummyUser(id, None, "0001")
         return member
@@ -100,10 +101,10 @@ class ClubManager():
     async def get_guild_clubs(self, interaction: discord.Interaction):
         connection = await self.get_connection()
         table = interaction.guild.id
-        clubs = await self.event_loop.run_in_executor(None, self.db_get_table_clubs, connection, table)    
+        clubs = await asyncio.get_running_loop().run_in_executor(None, self.db_get_table_clubs, connection, table)    
         return [await self.populate_club(interaction, club) for club in clubs]
     async def get_guild_clubs_light(self, id: int):
-        clubs = await self.event_loop.run_in_executor(None, self.db_get_table_clubs, await self.get_connection(), id)    
+        clubs = await asyncio.get_running_loop().run_in_executor(None, self.db_get_table_clubs, await self.get_connection(), id)    
         return [ClubLight(club[0], club[1], club[2], club[3], club[4]) for club in clubs]
 
     def db_get_club(self, connection, table, leader: discord.User):
@@ -115,7 +116,7 @@ class ClubManager():
     async def get_club(self, interaction: discord.Interaction, leader: discord.User):
         connection = await self.get_connection()
         table = interaction.guild.id
-        club = await self.event_loop.run_in_executor(None, self.db_get_club, connection, table, leader)    
+        club = await asyncio.get_running_loop().run_in_executor(None, self.db_get_club, connection, table, leader)    
         if club:
             return Club(club[0], interaction.guild.get_member(club[1]), club[2], club[3], club[4], await self.get_club_users(interaction, leader))
 
@@ -127,7 +128,7 @@ class ClubManager():
         """, (leader.id,)).fetchall()
     async def get_club_users(self, interaction: discord.Interaction, leader: discord.User):
         table = interaction.guild.id
-        users = await self.event_loop.run_in_executor(None, self.db_get_club_users, await self.get_connection(), table, leader)    
+        users = await asyncio.get_running_loop().run_in_executor(None, self.db_get_club_users, await self.get_connection(), table, leader)    
         return [await self.get_member(interaction, user[0]) for user in users]
 
     def db_get_user_clubs(self, connection, table, user: discord.User):
@@ -138,7 +139,7 @@ class ClubManager():
         """, (user.id,)).fetchall()
     async def get_user_clubs(self, interaction: discord.Interaction, user: discord.User):
         table = interaction.guild.id
-        clubs = await self.event_loop.run_in_executor(None, self.db_get_user_clubs, await self.get_connection(), table, user)
+        clubs = await asyncio.get_running_loop().run_in_executor(None, self.db_get_user_clubs, await self.get_connection(), table, user)
         if clubs:
             return [await self.get_club(interaction, interaction.guild.get_member(club[1])) for club in clubs]
 
@@ -157,7 +158,7 @@ class ClubManager():
             if interaction.user in club.users:
                 return ClubError.ALREADY_JOINED
 
-            await self.event_loop.run_in_executor(None, self.db_join_club, await self.get_connection(), table, user, leader)
+            await asyncio.get_running_loop().run_in_executor(None, self.db_join_club, await self.get_connection(), table, user, leader)
             return club
 
     def db_create_club(self, connection, table, club):
@@ -181,7 +182,7 @@ class ClubManager():
             club.icon_url = icon_url
         if banner_url:
             club.banner_url = banner_url
-        await self.event_loop.run_in_executor(None, self.db_create_club, await self.get_connection(), table, club)
+        await asyncio.get_running_loop().run_in_executor(None, self.db_create_club, await self.get_connection(), table, club)
 
         return club
 
@@ -201,7 +202,7 @@ class ClubManager():
                 club.icon_url = icon_url
             if banner_url:
                 club.banner_url = banner_url
-            await self.event_loop.run_in_executor(None, self.db_edit_club, await self.get_connection(), table, club)        
+            await asyncio.get_running_loop().run_in_executor(None, self.db_edit_club, await self.get_connection(), table, club)        
 
         return club
 
@@ -220,7 +221,7 @@ class ClubManager():
             return None
 
         table = interaction.guild.id
-        await self.event_loop.run_in_executor(None, self.db_delete_club, await self.get_connection(), table, leader)        
+        await asyncio.get_running_loop().run_in_executor(None, self.db_delete_club, await self.get_connection(), table, leader)        
 
         return True
 
@@ -237,7 +238,7 @@ class ClubManager():
                 return None
 
             table = interaction.guild.id
-            await self.event_loop.run_in_executor(None, self.db_leave_club, await self.get_connection(), table, user, leader)
+            await asyncio.get_running_loop().run_in_executor(None, self.db_leave_club, await self.get_connection(), table, user, leader)
 
             return True
 
@@ -245,5 +246,5 @@ class ClubManager():
         cur = connection.cursor()
         return cur.execute("""SELECT name FROM sqlite_master WHERE type='table'""").fetchall()
     async def get_guilds_id(self):
-        guilds = await self.event_loop.run_in_executor(None, self.db_get_guilds, await self.get_connection())
+        guilds = await asyncio.get_running_loop().run_in_executor(None, self.db_get_guilds, await self.get_connection())
         return list(set([int(id) for guild in guilds if (id := ''.join(c for c in guild[0] if c.isdigit())) != '']))
