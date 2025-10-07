@@ -136,28 +136,28 @@ class VaultManager():
             if database_item.value is not None:
                 database_item.value = UniversalType.get_type(UniversalType(database_item.data_type))(database_item.value)
             
-            if database_item.key and database_item.data_type:
+            if database_item.key and UniversalType.is_container(database_item.data_type):
                 process.setdefault(database_item.key, []).append(database_item)
-            if database_item.parent_key:
+            elif database_item.parent_key:
                 process.setdefault(database_item.parent_key, []).append(database_item)
-            elif database_item.key and database_item.value is not None:
+            else:
                 dict[database_item.key] = database_item.value
 
-        for key, value in list(process.items()):
-            value.sort(key=lambda x: (x.parent_id if x.parent_id is not None else -1, 0 if x.continuous_id is None else 1, 0 if x.parent_key is not None else float('-inf')))
-            array_map = {}
-            for database_item in value:
-                if database_item.key and UniversalType.is_container(database_item.data_type):
-                    dict[key] = make_temp(UniversalType.get_type(UniversalType(database_item.data_type)))
-                elif database_item.parent_key:
-                    ref = Ref(dict[key], am if (am := array_map.get(database_item.parent_id)) else [])
+        for key, database_items in tuple(process.items()):
+            database_items.sort(key=lambda x: (x.parent_id if x.parent_id is not None else -1, 0 if x.continuous_id is None else 1, 0 if x.parent_key is not None else float('-inf')))
+            if database_items[0].key and UniversalType.is_container(database_items[0].data_type):
+                construct = make_temp(UniversalType.get_type(UniversalType(database_items[0].data_type)))
+                database_items.pop(0)
+                ref = Ref(construct)
+                array_map = {}
+                for database_item in database_items:
+                    ref.indices = am if (am := array_map.get(database_item.parent_id)) else []
                     if not UniversalType.is_container(database_item.data_type):
                         ref.append(database_item.value)
                     else:
-                        array_map[database_item.id] = pi+[len(ref)] if (pi := array_map.get(database_item.parent_id)) else [len(ref)]
+                        array_map[database_item.id] = pi+(len(ref),) if (pi := array_map.get(database_item.parent_id)) else (len(ref),)
                         ref.append(UniversalType.get_type(UniversalType(database_item.data_type)))
-            ref = Ref(dict[key])
-            dict[key] = ref.final()
+                dict[key] = ref.final()
 
     def create_table(self, cursor, table):
         cursor.execute(f"CREATE TABLE IF NOT EXISTS '{table}'(key INTEGER UNIQUE, value, data_type INT, continuous_id INTEGER, id INTEGER, parent_id INTEGER, parent_key INTEGER)")
@@ -176,11 +176,9 @@ class VaultManager():
             """, (key, value, data_type, continuous_id, id, parent_id, parent_key))
     def db_walk_execute_store(self, key, cursor, table, value):
         self.db_execute_clear(cursor, table, key)
-        walked = walk(value)
-        sorted_walk = sorted(walked.items())
-        sorted_walk.reverse()
+        walked = tuple(walk(value).items())
 
-        for idx, value in sorted_walk:
+        for idx, value in walked:
             con_id = 0
             last_parent_id = None
             for item in value:
