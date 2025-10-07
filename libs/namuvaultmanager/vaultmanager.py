@@ -5,46 +5,86 @@ import sys
 import sqlitecloud
 import sqlite3
 from enum import Enum
-from typing import List, Optional, Any, Dict, Tuple
-from pydoc import locate
+from typing import List, Optional, Any, Dict, Tuple, Type
 
 from libs.utils.list_walker import walk, Child
 from libs.utils.ref import Ref, make_temp
 from libs.utils.hash import fnv1a_64_signed
 
-class ContinuousType(Enum):
+class UniversalType(Enum):
     List = 1
     Tuple = 2
     Set = 3
     Dict = 4
+    
+    Int = 5
+    Float = 6
+    Str = 7
+    Bool = 8
+    Complex = 9
+    Bytes = 10
+    NoneType = 11
 
-    def get_continuous(type: 'ContinuousType') -> Any:
-        match type:
-            case ContinuousType.List:
+    @staticmethod
+    def get_type(u_type: 'UniversalType') -> Type:
+        match u_type:
+            case UniversalType.List:
                 return list()
-            case ContinuousType.Tuple:
+            case UniversalType.Tuple:
                 return tuple()
-            case ContinuousType.Set:
+            case UniversalType.Set:
                 return set()
-            case ContinuousType.Dict:
+            case UniversalType.Dict:
                 return dict()
+            case UniversalType.Int:
+                return int
+            case UniversalType.Float:
+                return float
+            case UniversalType.Str:
+                return str
+            case UniversalType.Bool:
+                return bool
+            case UniversalType.Complex:
+                return complex
+            case UniversalType.Bytes:
+                return bytes
 
-    def get_continuous_enum(type: type) -> 'ContinuousType':
+    @staticmethod
+    def get_enum(type: Type) -> 'UniversalType':
         if type is list:
-            return ContinuousType.List
+            return UniversalType.List
         elif type is tuple:
-            return ContinuousType.Tuple
+            return UniversalType.Tuple
         elif type is set:
-            return ContinuousType.Set
+            return UniversalType.Set
         elif type is dict:
-            return ContinuousType.Dict
+            return UniversalType.Dict
+        elif type is int:
+            return UniversalType.Int
+        elif type is float:
+            return UniversalType.Float
+        elif type is str:
+            return UniversalType.Str
+        elif type is bool:
+            return UniversalType.Bool
+        elif type is complex:
+            return UniversalType.Complex
+        elif type is bytes:
+            return UniversalType.Bytes
+        else:
+            raise ValueError(f"Unsupported type: {type}")
+
+    @staticmethod
+    def is_container(type: int) -> bool:
+        if type is not None:
+            return UniversalType(type).value <= UniversalType.Dict.value
+        return False
 
 @dataclass
 class DatabaseItem:
     key: str
     value: Any
-    data_type: str
-    continuous_type: int
+    data_type: int
     continuous_id: int
     id: int
     parent_id: int
@@ -92,35 +132,35 @@ class VaultManager():
     async def populate_dict_from_db_list(self, array: List[Tuple], dict: Dict):
         process = {}
         for data in array:
-            database_item = DatabaseItem(data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7])
-            if database_item.data_type and database_item.value:
-                database_item.value = locate(database_item.data_type)(database_item.value)
+            database_item = DatabaseItem(data[0], data[1], data[2], data[3], data[4], data[5], data[6])
+            if database_item.value is not None:
+                database_item.value = UniversalType.get_type(UniversalType(database_item.data_type))(database_item.value)
             
-            if database_item.key and database_item.continuous_type:
+            if database_item.key and database_item.data_type:
                 process.setdefault(database_item.key, []).append(database_item)
             if database_item.parent_key:
                 process.setdefault(database_item.parent_key, []).append(database_item)
-            elif database_item.key and database_item.value:
+            elif database_item.key and database_item.value is not None:
                 dict[database_item.key] = database_item.value
 
         for key, value in list(process.items()):
-            value.sort(key=lambda x: (x.parent_id if x.parent_id is not None else -1, 0 if x.continuous_id is None else 1, x.continuous_id if x.continuous_id is not None else float('-inf')))
+            value.sort(key=lambda x: (x.parent_id if x.parent_id is not None else -1, 0 if x.continuous_id is None else 1, 0 if x.parent_key is not None else float('-inf')))
             array_map = {}
             for database_item in value:
-                if database_item.key and database_item.continuous_type:
-                    dict[key] = make_temp(ContinuousType.get_continuous(ContinuousType(database_item.continuous_type)))
+                if database_item.key and UniversalType.is_container(database_item.data_type):
+                    dict[key] = make_temp(UniversalType.get_type(UniversalType(database_item.data_type)))
                 elif database_item.parent_key:
                     ref = Ref(dict[key], am if (am := array_map.get(database_item.parent_id)) else [])
-                    if database_item.continuous_type is None:
+                    if not UniversalType.is_container(database_item.data_type):
                         ref.append(database_item.value)
                     else:
                         array_map[database_item.id] = pi+[len(ref)] if (pi := array_map.get(database_item.parent_id)) else [len(ref)]
-                        ref.append(ContinuousType.get_continuous(ContinuousType(database_item.continuous_type)))
+                        ref.append(UniversalType.get_type(UniversalType(database_item.data_type)))
             ref = Ref(dict[key])
             dict[key] = ref.final()
 
     def create_table(self, cursor, table):
-        cursor.execute(f"CREATE TABLE IF NOT EXISTS '{table}'(key INTEGER UNIQUE, value, data_type TEXT, continuous_type INTEGER, continuous_id INTEGER, id INTEGER, parent_id INTEGER, parent_key INTEGER)")
+        cursor.execute(f"CREATE TABLE IF NOT EXISTS '{table}'(key INTEGER UNIQUE, value, data_type INT, continuous_id INTEGER, id INTEGER, parent_id INTEGER, parent_key INTEGER)")
     def db_get_all(self, cursor, table):
         return cursor.execute(f"""
             SELECT * FROM '{table}'
@@ -129,11 +169,11 @@ class VaultManager():
         cursor.execute(f"""
             DELETE FROM '{table}' WHERE key = ? OR parent_key = ?
             """, (key, key))
-    def db_execute_store(self, cursor, table, key, value, data_type, continuous_type, continuous_id, id, parent_id, parent_key):
+    def db_execute_store(self, cursor, table, key, value, data_type, continuous_id, id, parent_id, parent_key):
         cursor.execute(f"""
-            INSERT OR REPLACE INTO '{table}' (key, value, data_type, continuous_type, continuous_id, id, parent_id, parent_key) VALUES
-            (?, ?, ?, ?, ?, ?, ?, ?)
-            """, (key, value, data_type, continuous_type, continuous_id, id, parent_id, parent_key))
+            INSERT OR REPLACE INTO '{table}' (key, value, data_type, continuous_id, id, parent_id, parent_key) VALUES
+            (?, ?, ?, ?, ?, ?, ?)
+            """, (key, value, data_type, continuous_id, id, parent_id, parent_key))
     def db_walk_execute_store(self, key, cursor, table, value):
         self.db_execute_clear(cursor, table, key)
         walked = walk(value)
@@ -150,14 +190,14 @@ class VaultManager():
                 last_parent_id = item.parent_id
                 if idx == -1:
                     if type(item) is Child:
-                        self.db_execute_store(cursor, table, key, item.value, type(item.value).__name__, None, None, None, None, None)
+                        self.db_execute_store(cursor, table, key, item.value, UniversalType.get_enum(iv).value if (iv := item.type) is not type(None) else None, None, None, None, None)
                         continue
-                    self.db_execute_store(cursor, table, key, None, None, ContinuousType.get_continuous_enum(item.type).value, None, None, None, None)
+                    self.db_execute_store(cursor, table, key, None, UniversalType.get_enum(item.type).value, None, None, None, None)
                     continue
                 if type(item) is Child:
-                    self.db_execute_store(cursor, table, None, item.value, type(iv).__name__ if (iv := item.value) is not None else None, None, con_id, None, item.parent_id, key)
+                    self.db_execute_store(cursor, table, None, item.value, UniversalType.get_enum(iv).value if (iv := item.type) is not type(None) else None, con_id if con_id else None, None, item.parent_id, key)
                     continue
-                self.db_execute_store(cursor, table, None, None, None, ContinuousType.get_continuous_enum(item.type).value, con_id, item.id, item.parent_id, key)
+                self.db_execute_store(cursor, table, None, None, UniversalType.get_enum(item.type).value, con_id if con_id else None, item.id, item.parent_id, key)
 
     def db_vault_store(self, connection, table, key: str, value: Any):
         cur = connection.cursor()

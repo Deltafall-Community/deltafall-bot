@@ -6,6 +6,7 @@ import itertools
 class Child:
     parent_id: int
     value: Any
+    type: Type
 
 @dataclass
 class Parent:
@@ -40,7 +41,7 @@ def walk(value, depth = -2, parent_id: int = 0, items: Dict[int, List[Union[Chil
         for item in value:
             walk(item, depth, current_id, items, counter)
     else:
-        node = Child(parent_id, value)
+        node = Child(parent_id, value, type(value))
         if depth in items:
             items[depth].append(node)
         else:
