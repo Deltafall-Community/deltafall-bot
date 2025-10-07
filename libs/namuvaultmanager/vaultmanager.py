@@ -77,7 +77,7 @@ class UniversalType(Enum):
     @staticmethod
     def is_container(type: int) -> bool:
         if type is not None:
-            return UniversalType(type).value <= UniversalType.Dict.value
+            return type <= 4
         return False
 
 @dataclass
@@ -151,7 +151,7 @@ class VaultManager():
                 ref = Ref(construct)
                 array_map = {}
                 for database_item in database_items:
-                    ref.indices = am if (am := array_map.get(database_item.parent_id)) else []
+                    ref.indices = am if (am := array_map.get(database_item.parent_id)) else tuple()
                     if not UniversalType.is_container(database_item.data_type):
                         ref.append(database_item.value)
                     else:
@@ -159,26 +159,22 @@ class VaultManager():
                         ref.append(UniversalType.get_type(UniversalType(database_item.data_type)))
                 dict[key] = ref.final()
 
-    def create_table(self, cursor, table):
-        cursor.execute(f"CREATE TABLE IF NOT EXISTS '{table}'(key INTEGER UNIQUE, value, data_type INT, continuous_id INTEGER, id INTEGER, parent_id INTEGER, parent_key INTEGER)")
-    def db_get_all(self, cursor, table):
-        return cursor.execute(f"""
-            SELECT * FROM '{table}'
+    def create_table(self, connection, table):
+        with connection:
+            connection.execute(f"CREATE TABLE IF NOT EXISTS '{table}'(key INTEGER UNIQUE, value, data_type INT, continuous_id INTEGER, id INTEGER, parent_id INTEGER, parent_key INTEGER)")
+    def db_get_all(self, connection, table):
+        with connection:
+            return connection.execute(f"""
+                SELECT * FROM '{table}'
             """).fetchall()
-    def db_execute_clear(self, cursor, table, key):
-        cursor.execute(f"""
-            DELETE FROM '{table}' WHERE key = ? OR parent_key = ?
+    def db_execute_clear(self, connection, table, key):
+        with connection:
+            connection.execute(f"""
+                DELETE FROM '{table}' WHERE key = ? OR parent_key = ?
             """, (key, key))
-    def db_execute_store(self, cursor, table, key, value, data_type, continuous_id, id, parent_id, parent_key):
-        cursor.execute(f"""
-            INSERT OR REPLACE INTO '{table}' (key, value, data_type, continuous_id, id, parent_id, parent_key) VALUES
-            (?, ?, ?, ?, ?, ?, ?)
-            """, (key, value, data_type, continuous_id, id, parent_id, parent_key))
-    def db_walk_execute_store(self, key, cursor, table, value):
-        self.db_execute_clear(cursor, table, key)
-        walked = tuple(walk(value).items())
-
-        for idx, value in walked:
+    def db_walk_execute_store(self, key, connection, table, value):
+        execute_data = []
+        for depth, value in tuple(walk(value).items()):
             con_id = 0
             last_parent_id = None
             for item in value:
@@ -186,21 +182,27 @@ class VaultManager():
                     con_id = -1
                 con_id += 1
                 last_parent_id = item.parent_id
-                if idx == -1:
+                if depth == -1:
                     if type(item) is Child:
-                        self.db_execute_store(cursor, table, key, item.value, UniversalType.get_enum(iv).value if (iv := item.type) is not type(None) else None, None, None, None, None)
+                        execute_data.append((key, item.value, UniversalType.get_enum(iv).value if (iv := item.type) is not type(None) else None, None, None, None, None))
                         continue
-                    self.db_execute_store(cursor, table, key, None, UniversalType.get_enum(item.type).value, None, None, None, None)
+                    execute_data.append((key, None, UniversalType.get_enum(item.type).value, None, None, None, None))
                     continue
                 if type(item) is Child:
-                    self.db_execute_store(cursor, table, None, item.value, UniversalType.get_enum(iv).value if (iv := item.type) is not type(None) else None, con_id if con_id else None, None, item.parent_id, key)
+                    execute_data.append((None, item.value, UniversalType.get_enum(iv).value if (iv := item.type) is not type(None) else None, con_id if con_id else None, None, item.parent_id, key))
                     continue
-                self.db_execute_store(cursor, table, None, None, UniversalType.get_enum(item.type).value, con_id if con_id else None, item.id, item.parent_id, key)
+                execute_data.append((None, None, UniversalType.get_enum(item.type).value, con_id if con_id else None, item.id, item.parent_id, key))
+
+        with connection:
+            self.db_execute_clear(connection, table, key)
+            connection.executemany(f"""
+                INSERT INTO '{table}' (key, value, data_type, continuous_id, id, parent_id, parent_key)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, execute_data)
 
     def db_vault_store(self, connection, table, key: str, value: Any):
-        cur = connection.cursor()
-        self.create_table(cur, table)
-        self.db_walk_execute_store(key, cur, table, value)
+        self.create_table(connection, table)
+        self.db_walk_execute_store(key, connection, table, value)
         connection.commit()
     async def vault_store(self, vault: 'Vault', key: str, value: Any) -> 'Vault':
         hashed_key = fnv1a_64_signed(key)
@@ -208,9 +210,8 @@ class VaultManager():
         vault.data[hashed_key] = value
 
     def db_vault_delete(self, connection, table, key: str):
-        cur = connection.cursor()
-        self.create_table(cur, table)
-        self.db_execute_clear(cur, table, key)
+        self.create_table(connection, table)
+        self.db_execute_clear(connection, table, key)
         connection.commit()
     async def vault_delete(self, vault: 'Vault', key: str) -> 'Vault':
         hashed_key = fnv1a_64_signed(key)
@@ -221,9 +222,8 @@ class VaultManager():
             pass
 
     def db_vault_get_all(self, connection, table):
-        cur = connection.cursor()
-        self.create_table(cur, table)
-        return self.db_get_all(cur, table)
+        self.create_table(connection, table)
+        return self.db_get_all(connection, table)
     async def vault_get_all(self, vault: 'Vault'):
         return await asyncio.get_running_loop().run_in_executor(None, self.db_vault_get_all, await self.get_connection(), self.get_table(vault.owner, vault.group))
 
