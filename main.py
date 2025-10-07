@@ -117,6 +117,7 @@ async def sync(ctx):
 @bot.listen()
 async def on_ready():
     logger.info(f"Logged in as {bot.user}")
+    await bot.change_presence(activity=discord.Game(name="Deltafall"))
 
 async def main():
     async with bot:
