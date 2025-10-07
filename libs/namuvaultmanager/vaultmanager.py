@@ -9,18 +9,35 @@ from typing import List, Optional, Any, Dict, Tuple
 from pydoc import locate
 
 from libs.utils.list_walker import walk, Child
-from libs.utils.ref import Ref
+from libs.utils.ref import Ref, make_temp
+from libs.utils.hash import fnv1a_64_signed
 
 class ContinuousType(Enum):
     List = 1
     Tuple = 2
+    Set = 3
+    Dict = 4
 
-    def get_continuous(type: int):
+    def get_continuous(type: 'ContinuousType') -> Any:
         match type:
-            case 1:
-                return []
-            case 2:
-                return ()
+            case ContinuousType.List:
+                return list()
+            case ContinuousType.Tuple:
+                return tuple()
+            case ContinuousType.Set:
+                return set()
+            case ContinuousType.Dict:
+                return dict()
+
+    def get_continuous_enum(type: type) -> 'ContinuousType':
+        if type is list:
+            return ContinuousType.List
+        elif type is tuple:
+            return ContinuousType.Tuple
+        elif type is set:
+            return ContinuousType.Set
+        elif type is dict:
+            return ContinuousType.Dict
 
 @dataclass
 class DatabaseItem:
@@ -91,16 +108,19 @@ class VaultManager():
             array_map = {}
             for database_item in value:
                 if database_item.key and database_item.continuous_type:
-                    dict[key] = ContinuousType.get_continuous(database_item.continuous_type)
+                    dict[key] = make_temp(ContinuousType.get_continuous(ContinuousType(database_item.continuous_type)))
                 elif database_item.parent_key:
                     ref = Ref(dict[key], am if (am := array_map.get(database_item.parent_id)) else [])
                     if database_item.continuous_type is None:
-                        dict[key] = ref.append(database_item.value)
+                        ref.append(database_item.value)
                     else:
                         array_map[database_item.id] = pi+[len(ref)] if (pi := array_map.get(database_item.parent_id)) else [len(ref)]
-                        dict[key] = ref.append(ContinuousType.get_continuous(database_item.continuous_type))
+                        ref.append(ContinuousType.get_continuous(ContinuousType(database_item.continuous_type)))
+            ref = Ref(dict[key])
+            dict[key] = ref.final()
+
     def create_table(self, cursor, table):
-        cursor.execute(f"CREATE TABLE IF NOT EXISTS '{table}'(key TEXT UNIQUE, value, data_type TEXT, continuous_type INTEGER, continuous_id INTEGER, id INTEGER, parent_id INTEGER, parent_key TEXT)")
+        cursor.execute(f"CREATE TABLE IF NOT EXISTS '{table}'(key INTEGER UNIQUE, value, data_type TEXT, continuous_type INTEGER, continuous_id INTEGER, id INTEGER, parent_id INTEGER, parent_key INTEGER)")
     def db_get_all(self, cursor, table):
         return cursor.execute(f"""
             SELECT * FROM '{table}'
@@ -132,12 +152,12 @@ class VaultManager():
                     if type(item) is Child:
                         self.db_execute_store(cursor, table, key, item.value, type(item.value).__name__, None, None, None, None, None)
                         continue
-                    self.db_execute_store(cursor, table, key, None, None, 1 if item.type is list else 2, None, None, None, None)
+                    self.db_execute_store(cursor, table, key, None, None, ContinuousType.get_continuous_enum(item.type).value, None, None, None, None)
                     continue
                 if type(item) is Child:
                     self.db_execute_store(cursor, table, None, item.value, type(iv).__name__ if (iv := item.value) is not None else None, None, con_id, None, item.parent_id, key)
                     continue
-                self.db_execute_store(cursor, table, None, None, None, 1 if item.type is list else 2, con_id, item.id, item.parent_id, key)
+                self.db_execute_store(cursor, table, None, None, None, ContinuousType.get_continuous_enum(item.type).value, con_id, item.id, item.parent_id, key)
 
     def db_vault_store(self, connection, table, key: str, value: Any):
         cur = connection.cursor()
@@ -145,8 +165,9 @@ class VaultManager():
         self.db_walk_execute_store(key, cur, table, value)
         connection.commit()
     async def vault_store(self, vault: 'Vault', key: str, value: Any) -> 'Vault':
-        await asyncio.get_running_loop().run_in_executor(None, self.db_vault_store, await self.get_connection(), self.get_table(vault.owner, vault.group), key, value)
-        vault.data[key] = value
+        hashed_key = fnv1a_64_signed(key)
+        await asyncio.get_running_loop().run_in_executor(None, self.db_vault_store, await self.get_connection(), self.get_table(vault.owner, vault.group), hashed_key, value)
+        vault.data[hashed_key] = value
 
     def db_vault_delete(self, connection, table, key: str):
         cur = connection.cursor()
@@ -154,9 +175,10 @@ class VaultManager():
         self.db_execute_clear(cur, table, key)
         connection.commit()
     async def vault_delete(self, vault: 'Vault', key: str) -> 'Vault':
-        await asyncio.get_running_loop().run_in_executor(None, self.db_vault_delete, await self.get_connection(), self.get_table(vault.owner, vault.group), key)
+        hashed_key = fnv1a_64_signed(key)
+        await asyncio.get_running_loop().run_in_executor(None, self.db_vault_delete, await self.get_connection(), self.get_table(vault.owner, vault.group), hashed_key)
         try:
-            del vault.data[key]
+            del vault.data[hashed_key]
         except Exception:
             pass
 
@@ -190,4 +212,4 @@ class Vault():
         await self.vault_manager.vault_delete(self, key)
 
     def get(self, key: str) -> Any:
-        return self.data.get(key)
+        return self.data.get(fnv1a_64_signed(key))
