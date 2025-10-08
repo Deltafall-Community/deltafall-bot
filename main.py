@@ -3,18 +3,16 @@ from discord.ext import commands
 import os
 import logging
 import asyncio
-import sqlite3
 import sys
 import json
 import time
 
-# dbs
-
+import sqlite3
 import sqlitecloud
-import plyvel
 
 from libs.namuscheduler.scheduler import Scheduler
 from libs.namuphishingdetection.phishingdetector import PhishingDetector
+from libs.namuvaultmanager.vaultmanager import VaultManager
 
 logger = logging.getLogger('discord')
 logger.setLevel(logging.INFO)
@@ -54,7 +52,7 @@ class Bot(commands.Bot):
         self.quote_db = self.connect_quote_db()
         self.scheduler = None
         self.phishing_detector = None
-        self.valentine_lvl_db = plyvel.DB('valentine', create_if_missing=True)
+        self.vault_manager = VaultManager(sqlitecloud_vault, True, logger) if (sqlitecloud_vault := self.config.get("sqlitecloud-vault")) else VaultManager("vault.db", logger=logger)
 
         self.logger = logger
         super().__init__(command_prefix=prefix if (prefix := self.config.get("prefix")) else "!", intents=discord.Intents.all())

@@ -10,6 +10,8 @@ from discord.ext.paginators.button_paginator import ButtonPaginator, PaginatorBu
 from libs.namumusic.ytdlpmusicplayer import YTDLPMusicPlayer
 from libs.namumusic.ytdlpaudio import PlaybackState, Metadata, YTDLPAudio
 
+from libs.namuvaultmanager.vaultmanager import VaultManager
+
 import aiohttp
 from io import BytesIO
 from PIL import Image, ImageStat
@@ -17,14 +19,22 @@ from PIL import Image, ImageStat
 class music(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        self.vault_manager: VaultManager = self.bot.vault_manager
         self.guilds = {}
 
-    def get_guild_player(self, voice_client: discord.VoiceClient):
+    async def get_guild_player(self, voice_client: discord.VoiceClient):
         player = self.guilds.get(voice_client.guild.id)
         if player:
             return player
         else:
+            vault = await self.vault_manager.get(voice_client.guild.id, "music")
             player = YTDLPMusicPlayer(voice_client, on_finished=self.on_track_end, on_start=self.on_track_start)
+            if (cf := vault.get("crossfade")) is not None:
+                player.crossfade = cf
+            if (cfl := vault.get("crossfade_length")) is not None:
+                player.crossfade_length = cfl
+            if (cfs := vault.get("crossfade_strength")) is not None:
+                player.crossfade_strength = cfs
         self.guilds[voice_client.guild.id] = player
         return player
 
@@ -61,7 +71,7 @@ class music(commands.Cog):
             await interaction.user.voice.channel.connect()
 
         vc = interaction.guild.voice_client
-        player = self.get_guild_player(vc)
+        player = await self.get_guild_player(vc)
         player.extras["channel"] = interaction.channel
         if file and file.content_type[:file.content_type.find("/")] == "audio":
             audios = await player.add_song(file.url, streamable=False)
@@ -82,7 +92,7 @@ class music(commands.Cog):
     @group.command(name="volume", description="adjust the volume (default 100%)")
     async def volume(self, interaction: discord.Interaction, volume: float):
         vc = interaction.guild.voice_client
-        player = self.get_guild_player(vc)
+        player = await self.get_guild_player(vc)
         player.set_volume(volume / 100.0)
         embed = discord.Embed(description=f"## Volume\n The volume has been adjusted to {volume}%.")
         await interaction.response.send_message(embed=embed)
@@ -116,20 +126,24 @@ class music(commands.Cog):
         app_commands.Choice(name="No", value=0)])
     async def transition(self, interaction: discord.Interaction, enabled: app_commands.Choice[int], duration: Optional[float], strength: Optional[float]):
         vc = interaction.guild.voice_client
-        player = self.get_guild_player(vc)
+        player = await self.get_guild_player(vc)
         player.crossfade = bool(enabled.value)
         if duration:
             player.crossfade_length = min(max(2.0, duration), 12.0)
         if strength:
             strength = min(max(0.1, strength), 9.0)
             player.crossfade_strength = strength
+        vault = await self.vault_manager.get(vc.guild.id, "music")
+        await vault.store("crossfade", player.crossfade)
+        await vault.store("crossfade_length", player.crossfade_length)
+        await vault.store("crossfade_strength", player.crossfade_strength)
         embed = discord.Embed(description=f"## Transition Set\nEnabled: {player.crossfade}\nDuration: {player.crossfade_length}\nStrength: {player.crossfade_strength}")
         await interaction.response.send_message(embed=embed)
 
     @group.command(name="skip", description="skip song")
     async def skip(self, interaction: discord.Interaction):
         vc = interaction.guild.voice_client
-        player = self.get_guild_player(vc)
+        player = await self.get_guild_player(vc)
         audio = await player.play_next_song()
 
         if audio:
@@ -142,7 +156,7 @@ class music(commands.Cog):
     @group.command(name="queue", description="list queue")
     async def queue(self, interaction: discord.Interaction):
         vc = interaction.guild.voice_client
-        player = self.get_guild_player(vc)
+        player = await self.get_guild_player(vc)
         queue = player.queue
         if not queue:
             embed = discord.Embed(description="## 📜 Playlist\nThe queue is empty.")
@@ -177,7 +191,7 @@ class music(commands.Cog):
     @group.command(name="current_playing", description="what is currently playing")
     async def current_playing(self, interaction: discord.Interaction):
         vc = interaction.guild.voice_client
-        player = self.get_guild_player(vc)
+        player = await self.get_guild_player(vc)
         audio = player.current_song
         metadata: Metadata = audio.metadata
 
