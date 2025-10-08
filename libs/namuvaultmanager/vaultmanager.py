@@ -4,62 +4,14 @@ import logging
 import sys
 import sqlitecloud
 import sqlite3
-from typing import List, Optional, Any, Dict, Tuple, Type
+from typing import List, Optional, Any, Dict, Tuple
 
 from libs.utils.list_walker import walk, Child
 from libs.utils.ref import Ref, make_temp
 from libs.utils.hash import fnv1a_64_signed
+from libs.utils.universaltype import UniversalType
 
-class UniversalType():
-    _type_map = {
-        1: list,
-        2: tuple,
-        3: set,
-        4: dict,
-        5: int,
-        6: float,
-        7: str,
-        8: bool,
-        9: complex,
-        10: bytes,
-    }
-            
-    @staticmethod
-    def get_type_int(type: int) -> Type:
-        return UniversalType._type_map.get(type)
-
-    @staticmethod
-    def get_int(type: Type) -> int:
-        if type is list:
-            return 1
-        elif type is tuple:
-            return 2
-        elif type is set:
-            return 3
-        elif type is dict:
-            return 4
-        elif type is int:
-            return 5
-        elif type is float:
-            return 6
-        elif type is str:
-            return 7
-        elif type is bool:
-            return 8
-        elif type is complex:
-            return 9
-        elif type is bytes:
-            return 10
-        else:
-            raise ValueError(f"Unsupported type: {type}")
-
-    @staticmethod
-    def is_container(type: int) -> bool:
-        if type is not None:
-            return type <= 4
-        return False
-
-@dataclass
+@dataclass(slots=True)
 class DatabaseItem:
     key: str
     value: Any
@@ -108,21 +60,31 @@ class VaultManager():
     def get_table(self, owner: str, group: Optional[str] = None):
         return f"{owner}.{group}" if group else owner
 
+    @staticmethod
+    def create_and_transform_item(data):
+        database_item = DatabaseItem(data[0], data[1], data[2], data[3], data[4], data[5], data[6])
+
+        if database_item.value is not None:
+            database_item.value = UniversalType.get_type_int(database_item.data_type)(database_item.value)
+
+        return database_item
+
     async def populate_dict_from_db_list(self, array: List[Tuple], dict: Dict):
         process = {}
-        for data in array:
-            database_item = DatabaseItem(data[0], data[1], data[2], data[3], data[4], data[5], data[6])
-            if database_item.value is not None:
-                database_item.value = UniversalType.get_type_int(database_item.data_type)(database_item.value)
-            if (database_item.key and UniversalType.is_container(database_item.data_type)) or database_item.parent_key:
-                process.setdefault(database_item.key or database_item.parent_key, []).append(database_item)
+        for database_item in (self.create_and_transform_item(data) for data in array):
+            if (database_item.key and UniversalType.is_container(database_item.data_type)) or database_item.parent_key:            
+                dk = database_item.key or database_item.parent_key
+                if dk in process:
+                    process[dk].append(database_item)
+                else:
+                    process[dk] = [database_item]
             else:
                 dict[database_item.key] = database_item.value
 
-        for key, database_items in tuple(process.items()):
+        for key, database_items in process.items():
             database_items.sort(key=lambda x: (x.parent_id if x.parent_id is not None else -1, 0 if x.continuous_id is None else 1, 0 if x.parent_key is not None else float('-inf')))
             if database_items[0].key and UniversalType.is_container(database_items[0].data_type):
-                construct = make_temp(UniversalType.get_type_int(database_items[0].data_type)())
+                construct = make_temp(UniversalType.get_type_int(database_items[0].data_type))
                 database_items.pop(0)
                 ref = Ref(construct)
                 for database_item in database_items:
@@ -132,7 +94,7 @@ class VaultManager():
                         ref.append(database_item.value)
                     else:
                         ref.indices_ids[database_item.id] = (pi,)+(len(ref),) if (pi := database_item.parent_id) else (len(ref),)
-                        ref.append(UniversalType.get_type_int(database_item.data_type)())
+                        ref.append(UniversalType.get_type_int(database_item.data_type))
                 dict[key] = ref.final()
 
     def create_table(self, connection, table):
@@ -150,7 +112,7 @@ class VaultManager():
             """, (key, key))
     def db_walk_execute_store(self, key, connection, table, value):
         execute_data = []
-        for depth, value in tuple(walk(value).items()):
+        for depth, value in walk(value).items():
             con_id = 0
             last_parent_id = None
             for item in value:
@@ -182,8 +144,9 @@ class VaultManager():
         connection.commit()
     async def vault_store(self, vault: 'Vault', key: str, value: Any) -> 'Vault':
         hashed_key = fnv1a_64_signed(key)
-        await asyncio.get_running_loop().run_in_executor(None, self.db_vault_store, await self.get_connection(), self.get_table(vault.owner, vault.group), hashed_key, value)
-        vault.data[hashed_key] = value
+        if not (hashed_key in vault.data and vault.data[hashed_key] == value):
+            await asyncio.get_running_loop().run_in_executor(None, self.db_vault_store, await self.get_connection(), self.get_table(vault.owner, vault.group), hashed_key, value)
+            vault.data[hashed_key] = value
 
     def db_vault_delete(self, connection, table, key: str):
         self.create_table(connection, table)
