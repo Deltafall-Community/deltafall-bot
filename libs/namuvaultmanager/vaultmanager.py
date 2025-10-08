@@ -4,73 +4,52 @@ import logging
 import sys
 import sqlitecloud
 import sqlite3
-from enum import Enum
 from typing import List, Optional, Any, Dict, Tuple, Type
 
 from libs.utils.list_walker import walk, Child
 from libs.utils.ref import Ref, make_temp
 from libs.utils.hash import fnv1a_64_signed
 
-class UniversalType(Enum):
-    List = 1
-    Tuple = 2
-    Set = 3
-    Dict = 4
-    
-    Int = 5
-    Float = 6
-    Str = 7
-    Bool = 8
-    Complex = 9
-    Bytes = 10
-    NoneType = 11
+class UniversalType():
+    _type_map = {
+        1: list,
+        2: tuple,
+        3: set,
+        4: dict,
+        5: int,
+        6: float,
+        7: str,
+        8: bool,
+        9: complex,
+        10: bytes,
+    }
+            
+    @staticmethod
+    def get_type_int(type: int) -> Type:
+        return UniversalType._type_map.get(type)
 
     @staticmethod
-    def get_type(u_type: 'UniversalType') -> Type:
-        match u_type:
-            case UniversalType.List:
-                return list()
-            case UniversalType.Tuple:
-                return tuple()
-            case UniversalType.Set:
-                return set()
-            case UniversalType.Dict:
-                return dict()
-            case UniversalType.Int:
-                return int
-            case UniversalType.Float:
-                return float
-            case UniversalType.Str:
-                return str
-            case UniversalType.Bool:
-                return bool
-            case UniversalType.Complex:
-                return complex
-            case UniversalType.Bytes:
-                return bytes
-
-    @staticmethod
-    def get_enum(type: Type) -> 'UniversalType':
+    def get_int(type: Type) -> int:
         if type is list:
-            return UniversalType.List
+            return 1
         elif type is tuple:
-            return UniversalType.Tuple
+            return 2
         elif type is set:
-            return UniversalType.Set
+            return 3
         elif type is dict:
-            return UniversalType.Dict
+            return 4
         elif type is int:
-            return UniversalType.Int
+            return 5
         elif type is float:
-            return UniversalType.Float
+            return 6
         elif type is str:
-            return UniversalType.Str
+            return 7
         elif type is bool:
-            return UniversalType.Bool
+            return 8
         elif type is complex:
-            return UniversalType.Complex
+            return 9
         elif type is bytes:
-            return UniversalType.Bytes
+            return 10
         else:
             raise ValueError(f"Unsupported type: {type}")
 
@@ -134,29 +113,26 @@ class VaultManager():
         for data in array:
             database_item = DatabaseItem(data[0], data[1], data[2], data[3], data[4], data[5], data[6])
             if database_item.value is not None:
-                database_item.value = UniversalType.get_type(UniversalType(database_item.data_type))(database_item.value)
-            
-            if database_item.key and UniversalType.is_container(database_item.data_type):
-                process.setdefault(database_item.key, []).append(database_item)
-            elif database_item.parent_key:
-                process.setdefault(database_item.parent_key, []).append(database_item)
+                database_item.value = UniversalType.get_type_int(database_item.data_type)(database_item.value)
+            if (database_item.key and UniversalType.is_container(database_item.data_type)) or database_item.parent_key:
+                process.setdefault(database_item.key or database_item.parent_key, []).append(database_item)
             else:
                 dict[database_item.key] = database_item.value
 
         for key, database_items in tuple(process.items()):
             database_items.sort(key=lambda x: (x.parent_id if x.parent_id is not None else -1, 0 if x.continuous_id is None else 1, 0 if x.parent_key is not None else float('-inf')))
             if database_items[0].key and UniversalType.is_container(database_items[0].data_type):
-                construct = make_temp(UniversalType.get_type(UniversalType(database_items[0].data_type)))
+                construct = make_temp(UniversalType.get_type_int(database_items[0].data_type)())
                 database_items.pop(0)
                 ref = Ref(construct)
-                array_map = {}
                 for database_item in database_items:
-                    ref.indices = am if (am := array_map.get(database_item.parent_id)) else tuple()
+                    if database_item.parent_id:
+                        ref.id = database_item.parent_id
                     if not UniversalType.is_container(database_item.data_type):
                         ref.append(database_item.value)
                     else:
-                        array_map[database_item.id] = pi+(len(ref),) if (pi := array_map.get(database_item.parent_id)) else (len(ref),)
-                        ref.append(UniversalType.get_type(UniversalType(database_item.data_type)))
+                        ref.indices_ids[database_item.id] = (pi,)+(len(ref),) if (pi := database_item.parent_id) else (len(ref),)
+                        ref.append(UniversalType.get_type_int(database_item.data_type)())
                 dict[key] = ref.final()
 
     def create_table(self, connection, table):
@@ -184,14 +160,14 @@ class VaultManager():
                 last_parent_id = item.parent_id
                 if depth == -1:
                     if type(item) is Child:
-                        execute_data.append((key, item.value, UniversalType.get_enum(iv).value if (iv := item.type) is not type(None) else None, None, None, None, None))
+                        execute_data.append((key, item.value, UniversalType.get_int(iv) if (iv := item.type) is not type(None) else None, None, None, None, None))
                         continue
-                    execute_data.append((key, None, UniversalType.get_enum(item.type).value, None, None, None, None))
+                    execute_data.append((key, None, UniversalType.get_int(item.type), None, None, None, None))
                     continue
                 if type(item) is Child:
-                    execute_data.append((None, item.value, UniversalType.get_enum(iv).value if (iv := item.type) is not type(None) else None, con_id if con_id else None, None, item.parent_id, key))
+                    execute_data.append((None, item.value, UniversalType.get_int(iv) if (iv := item.type) is not type(None) else None, con_id if con_id else None, None, item.parent_id, key))
                     continue
-                execute_data.append((None, None, UniversalType.get_enum(item.type).value, con_id if con_id else None, item.id, item.parent_id, key))
+                execute_data.append((None, None, UniversalType.get_int(item.type), con_id if con_id else None, item.id, item.parent_id, key))
 
         with connection:
             self.db_execute_clear(connection, table, key)
