@@ -10,26 +10,47 @@ class TempList(list):
         self.as_type = as_type
 
 def make_temp(value):
-    match value:
-        case list():
-            return TempList(value, as_type=list)
-        case tuple():
-            return TempList(list(value), as_type=tuple)
-        case set():
-            return TempList(list(value), as_type=set)
-        case dict():
-            return TempList(list(value.items()), as_type=dict)
+    if type(value) is list:
+        return TempList(value, as_type=list)
+    elif type(value) is tuple:
+        return TempList(list(value), as_type=tuple)
+    elif type(value) is set:
+        return TempList(list(value), as_type=set)
+    elif type(value) is dict:
+        return TempList(list(value.items()), as_type=dict)
     return value
 
 class Ref:
     def __init__(self, root: Any, indices: Sequence[int | Any] = ()):
         self.root = root
         self.indices = tuple(indices)
+        self.indices_ids = {}
+        self.id = None
+
+        self.array_map = {}
 
     def get(self):
         value = self.root
-        for idx in self.indices:
-            value = value[idx]
+        if self.id is not None:
+            if (am := self.array_map.get(self.id)):
+                return am
+            else:
+                if (im := self.indices_ids.get(self.id)):
+                    if (am := self.array_map.get(im[0])):
+                        if len(im) > 1:
+                            value = am[im[1]]
+                        else:
+                            value = value[im[0]]
+                        self.array_map[self.id] = value
+                        return value
+                
+                for idx in self.indices:
+                    value = value[idx]
+                self.array_map[self.id] = value
+        else:
+            for idx in self.indices:
+                value = value[idx]
+        
         return value
 
     def _set_in_container(self, container, key, value):
@@ -66,25 +87,24 @@ class Ref:
         target = self.get()
         value = make_temp(value)
 
-        match target:
-            case TempList():
-                target.append(value)
-            case list():
-                target.append(value)
-            case tuple():
-                new_list = make_temp(target)
-                new_list.append(value)
-                self.set(new_list)
-            case set():
-                new_list = make_temp(target)
-                new_list.append(value)
-                self.set(new_list)
-            case dict():
-                temp_list = make_temp(list(target.items()))
-                temp_list.append(value)
-                self.set(temp_list)
-            case _:
-                raise TypeError(f"Cannot append to type {type(target)}")
+        if type(target) is TempList:    
+            target.append(value)
+        elif type(target) is list:
+            target.append(value)
+        elif type(target) is tuple:
+            new_list = make_temp(target)
+            new_list.append(value)
+            self.set(new_list)
+        elif type(target) is set:
+            new_list = make_temp(target)
+            new_list.append(value)
+            self.set(new_list)
+        elif type(target) is dict:
+            temp_list = make_temp(list(target.items()))
+            temp_list.append(value)
+            self.set(temp_list)
+        else:    
+            raise TypeError(f"Cannot append to type {type(target)}")
 
         return self.root
 
@@ -109,7 +129,7 @@ class Ref:
 
     def final(self):
         def _convert(value):
-            if isinstance(value, TempList):
+            if type(value) is TempList:
                 converted = [_convert(v) for v in value]
 
                 if value.as_type is list:
