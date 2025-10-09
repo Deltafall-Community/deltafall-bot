@@ -16,6 +16,11 @@ from libs.utils.universaltype import UniversalType
 
 MAX_WORKERS = min(32, os.cpu_count() + 4)
 
+# ! --------------- !
+# while this class was built with multi-threading in mind
+# it is faster to use this class with python 3.14 without GIL
+# ! --------------- !
+
 @dataclass(slots=True)
 class DatabaseItem:
     key: str
