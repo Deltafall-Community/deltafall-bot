@@ -1,5 +1,5 @@
 discord.py @ git+https://github.com/Rapptz/discord.py
-discord.py[voice]
+pynacl
 pillow
 pet-pet-gif
 pilmoji
