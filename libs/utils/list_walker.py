@@ -2,22 +2,24 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Type, Union
 import itertools
 
-@dataclass
+from libs.utils.universaltype import UniversalType
+
+@dataclass(slots=True)
 class Child:
     parent_id: int
     value: Any
     type: Type
 
-@dataclass
+@dataclass(slots=True)
 class Parent:
     parent_id: int
     id: int
     type: Type
 
 def is_sequence(obj):
-    return isinstance(obj, (list, tuple, set, dict)) and not isinstance(obj, (str, bytes, bytearray))
+    return UniversalType.is_container(UniversalType.get_int(type(obj)))
 
-def walk(value, depth = -2, parent_id: int = 0, items: Dict[int, List[Union[Child, Parent]]] = None, counter: List[int] = None) -> Dict[int, List[Union[Child, Parent]]]:
+async def walk(value, depth = -2, parent_id: int = 0, items: Dict[int, List[Union[Child, Parent]]] = None, counter: List[int] = None) -> Dict[int, List[Union[Child, Parent]]]:
     if items is None:
         items = {}
     if counter is None:
@@ -39,7 +41,7 @@ def walk(value, depth = -2, parent_id: int = 0, items: Dict[int, List[Union[Chil
             items[depth] = [node]
         
         for item in value:
-            walk(item, depth, current_id, items, counter)
+            await walk(item, depth, current_id, items, counter)
     else:
         node = Child(parent_id, value, type(value))
         if depth in items:
