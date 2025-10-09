@@ -2,14 +2,19 @@ import asyncio
 from dataclasses import dataclass
 import logging
 import sys
+import os
+import math
 import sqlitecloud
-import sqlite3
 from typing import List, Optional, Any, Dict, Tuple, Union
+import apsw
+from concurrent.futures import ThreadPoolExecutor
 
 from libs.utils.list_walker import walk, Child
 from libs.utils.ref import Ref, make_temp
 from libs.utils.hash import fnv1a_64_signed
 from libs.utils.universaltype import UniversalType
+
+MAX_WORKERS = min(32, os.cpu_count() + 4)
 
 @dataclass(slots=True)
 class DatabaseItem:
@@ -32,6 +37,7 @@ class VaultManager():
         self.is_sqlitecloud = is_sqlitecloud
         self.db_connect_str=database
         self.db=self.connect_db()
+        self.db.execute("PRAGMA journal_mode=WAL")
 
         self.vault_pool: Dict[str, Vault] = {}
 
@@ -40,14 +46,14 @@ class VaultManager():
             if self.is_sqlitecloud:
                 return sqlitecloud.connect(self.db_connect_str)
             else:
-                return sqlite3.connect(self.db_connect_str, check_same_thread=False)
+                return apsw.Connection(self.db_connect_str)
         except Exception as e:
             self.logger.error(f"Failed to connect to Vault Database.. (Reason: {e})") 
 
     def check_connection(self):
         try:
-            cur = self.db.cursor()
-            cur.execute("""SELECT 1""")
+            with self.db as connection:
+                connection.execute("""SELECT 1""")
         except Exception as ex:
             self.logger.info(f"Reconnecting to Vault Database... (Reason: {repr(ex)})")
             self.db = self.connect_db()
@@ -60,42 +66,72 @@ class VaultManager():
     def get_table(self, owner: str, group: Optional[str] = None):
         return f"{owner}.{group}" if group else owner
 
-    @staticmethod
-    def create_and_transform_item(data):
-        database_item = DatabaseItem(data[0], data[1], data[2], data[3], data[4], data[5], data[6])
-
-        if database_item.value is not None:
-            database_item.value = UniversalType.get_type_int(database_item.data_type)(database_item.value)
-
-        return database_item
-
     async def populate_dict_from_db_list(self, array: List[Tuple], dict: Dict):
-        process = {}
-        for database_item in (self.create_and_transform_item(data) for data in array):
-            if (database_item.key and UniversalType.is_container(database_item.data_type)) or database_item.parent_key:            
-                dk = database_item.key or database_item.parent_key
-                if dk in process:
-                    process[dk].append(database_item)
-                else:
-                    process[dk] = [database_item]
-            else:
-                dict[database_item.key] = database_item.value
+        loop = asyncio.get_running_loop()
+        
+        get_type_int = UniversalType.get_type_int
+        is_container = UniversalType.is_container
+        DatabaseItem_ = DatabaseItem
 
-        for key, database_items in process.items():
+        def process_chunk(array_chunk):
+            local_process = {}
+            local_dict = {}
+            
+            for data in array_chunk:
+                database_item = DatabaseItem_(*data)
+                if database_item.value is not None:
+                    database_item.value = get_type_int(database_item.data_type)(database_item.value)
+
+                if (database_item.key and is_container(database_item.data_type)) or database_item.parent_key:            
+                    dk = database_item.key or database_item.parent_key
+                    if dk in local_process:
+                        local_process[dk].append(database_item)
+                    else:
+                        local_process[dk] = [database_item]
+                else:
+                    local_dict[database_item.key] = database_item.value
+            return local_process, local_dict
+
+        process = {}
+
+        if array:
+            with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+                chunk_size = math.ceil(len(array) / MAX_WORKERS)
+                chunks = [array[i:i+chunk_size] for i in range(0, len(array), chunk_size)]
+                tasks = [loop.run_in_executor(executor, process_chunk, chunk) for chunk in chunks]
+                results = await asyncio.gather(*tasks)
+
+            for local_process, local_dict in results:
+                dict.update(local_dict)
+                for k, v in local_process.items():
+                    if k in process:
+                        process[k].extend(v)
+                    else:
+                        process[k] = v
+
+        def process_item(key, database_items):
             database_items.sort(key=lambda x: (x.parent_id if x.parent_id is not None else -1, 0 if x.continuous_id is None else 1, 0 if x.parent_key is not None else float('-inf')))
-            if database_items[0].key and UniversalType.is_container(database_items[0].data_type):
-                construct = make_temp(UniversalType.get_type_int(database_items[0].data_type))
+            if database_items[0].key and is_container(database_items[0].data_type):
+                construct = make_temp(get_type_int(database_items[0].data_type))
                 database_items.pop(0)
                 ref = Ref(construct)
                 for database_item in database_items:
                     if database_item.parent_id:
                         ref.id = database_item.parent_id
-                    if not UniversalType.is_container(database_item.data_type):
+                    if not is_container(database_item.data_type):
                         ref.append(database_item.value)
                     else:
                         ref.indices_ids[database_item.id] = (pi,)+(len(ref),) if (pi := database_item.parent_id) else (len(ref),)
-                        ref.append(UniversalType.get_type_int(database_item.data_type))
-                dict[key] = ref.final()
+                        ref.append(get_type_int(database_item.data_type))
+                return key, ref.final()
+            return key, None
+        
+        with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+            tasks = [loop.run_in_executor(executor, process_item, key, items) for key, items in process.items()]
+            for coro in asyncio.as_completed(tasks):
+                key, final_value = await coro
+                if final_value is not None:
+                    dict[key] = final_value
 
     def create_table(self, connection, table):
         connection.execute(f"CREATE TABLE IF NOT EXISTS '{table}'(key INTEGER UNIQUE, value, data_type INT, continuous_id INTEGER, id INTEGER, parent_id INTEGER, parent_key INTEGER)")
@@ -148,7 +184,6 @@ class VaultManager():
                 INSERT INTO '{table}' (key, value, data_type, continuous_id, id, parent_id, parent_key)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
             """, execute_data)
-        connection.commit()
     async def vault_store(self, vault: 'Vault', key: Union[str, dict], value: Optional[Any] = None) -> 'Vault':
         execute_datas = []
         keys = []
@@ -176,7 +211,6 @@ class VaultManager():
         with connection:
             self.create_table(connection, table)
             self.db_execute_delete(connection, table, key)
-            connection.commit()
     async def vault_delete(self, vault: 'Vault', key: str) -> 'Vault':
         hashed_key = fnv1a_64_signed(key)
         await asyncio.get_running_loop().run_in_executor(None, self.db_vault_delete, await self.get_connection(), self.get_table(vault.owner, vault.group), hashed_key)
@@ -188,7 +222,6 @@ class VaultManager():
     def db_vault_clear(self, connection, table):
         with connection:
             self.db_execute_clear(connection, table)
-            connection.commit()
     async def vault_clear(self, vault: 'Vault') -> 'Vault':
         await asyncio.get_running_loop().run_in_executor(None, self.db_vault_clear, await self.get_connection(), self.get_table(vault.owner, vault.group))
         vault.data.clear()

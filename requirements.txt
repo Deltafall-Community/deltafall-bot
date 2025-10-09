@@ -8,7 +8,6 @@ psutil
 pyyaml
 sqlitecloud
 praw
-plyvel
 beautifulsoup4
 aiohttp
 pymediawiki
@@ -23,3 +22,4 @@ aiosqlite
 MangaDex.py
 rapidfuzz
 humanize
+aspw
