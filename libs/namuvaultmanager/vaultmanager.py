@@ -225,5 +225,8 @@ class Vault():
     async def clear(self):
         await self.vault_manager.vault_clear(self)
 
-    def get(self, key: str) -> Any:
-        return self.data.get(fnv1a_64_signed(key))
+    def get(self, key: str, default: Any = None) -> Any:
+        value = self.data.get(fnv1a_64_signed(key))
+        if value is None and default is not None:
+            return default
+        return value
