@@ -4,7 +4,7 @@ import logging
 import sys
 import sqlitecloud
 import sqlite3
-from typing import List, Optional, Any, Dict, Tuple
+from typing import List, Optional, Any, Dict, Tuple, Union
 
 from libs.utils.list_walker import walk, Child
 from libs.utils.ref import Ref, make_temp
@@ -98,21 +98,24 @@ class VaultManager():
                 dict[key] = ref.final()
 
     def create_table(self, connection, table):
-        with connection:
-            connection.execute(f"CREATE TABLE IF NOT EXISTS '{table}'(key INTEGER UNIQUE, value, data_type INT, continuous_id INTEGER, id INTEGER, parent_id INTEGER, parent_key INTEGER)")
+        connection.execute(f"CREATE TABLE IF NOT EXISTS '{table}'(key INTEGER UNIQUE, value, data_type INT, continuous_id INTEGER, id INTEGER, parent_id INTEGER, parent_key INTEGER)")
     def db_get_all(self, connection, table):
-        with connection:
-            return connection.execute(f"""
-                SELECT * FROM '{table}'
-            """).fetchall()
-    def db_execute_clear(self, connection, table, key):
-        with connection:
-            connection.execute(f"""
-                DELETE FROM '{table}' WHERE key = ? OR parent_key = ?
-            """, (key, key))
-    def db_walk_execute_store(self, key, connection, table, value):
+        return connection.execute(f"""
+            SELECT * FROM '{table}'
+        """).fetchall()
+    def db_execute_delete(self, connection, table, key):
+        connection.execute(f"""
+            DELETE FROM '{table}' WHERE key = ? OR parent_key = ?
+        """, (key, key))
+    def db_execute_clear(self, connection, table):
+        connection.execute(f"""
+            DROP TABLE IF EXISTS '{table}';
+        """)
+    
+    @staticmethod
+    async def walk_execute_data(key, value):
         execute_data = []
-        for depth, value in walk(value).items():
+        for depth, value in (await walk(value)).items():
             con_id = 0
             last_parent_id = None
             for item in value:
@@ -120,38 +123,60 @@ class VaultManager():
                     con_id = -1
                 con_id += 1
                 last_parent_id = item.parent_id
+                current_con_id = con_id if con_id else None
+                item_type_int = UniversalType.get_int(item.type)
+                is_child = type(item) is Child
                 if depth == -1:
-                    if type(item) is Child:
-                        execute_data.append((key, item.value, UniversalType.get_int(iv) if (iv := item.type) is not type(None) else None, None, None, None, None))
-                        continue
-                    execute_data.append((key, None, UniversalType.get_int(item.type), None, None, None, None))
-                    continue
-                if type(item) is Child:
-                    execute_data.append((None, item.value, UniversalType.get_int(iv) if (iv := item.type) is not type(None) else None, con_id if con_id else None, None, item.parent_id, key))
-                    continue
-                execute_data.append((None, None, UniversalType.get_int(item.type), con_id if con_id else None, item.id, item.parent_id, key))
+                    if is_child:
+                        execute_data.append((key, item.value, item_type_int, None, None, None, None))
+                    else:
+                        execute_data.append((key, None, item_type_int, None, None, None, None))
+                else:
+                    if is_child:
+                        execute_data.append((None, item.value, item_type_int, current_con_id, None, item.parent_id, key))
+                    else:
+                        execute_data.append((None, None, item_type_int, current_con_id, item.id, item.parent_id, key))
+        return execute_data
 
+    def db_vault_store(self, connection, table, keys: List[tuple], execute_data: List[tuple]):
         with connection:
-            self.db_execute_clear(connection, table, key)
+            self.create_table(connection, table)
+            connection.executemany(f"""
+                DELETE FROM '{table}' WHERE key = ? OR parent_key = ?
+            """, keys)
             connection.executemany(f"""
                 INSERT INTO '{table}' (key, value, data_type, continuous_id, id, parent_id, parent_key)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
             """, execute_data)
-
-    def db_vault_store(self, connection, table, key: str, value: Any):
-        self.create_table(connection, table)
-        self.db_walk_execute_store(key, connection, table, value)
         connection.commit()
-    async def vault_store(self, vault: 'Vault', key: str, value: Any) -> 'Vault':
-        hashed_key = fnv1a_64_signed(key)
-        if not (hashed_key in vault.data and vault.data[hashed_key] == value):
-            await asyncio.get_running_loop().run_in_executor(None, self.db_vault_store, await self.get_connection(), self.get_table(vault.owner, vault.group), hashed_key, value)
-            vault.data[hashed_key] = value
+    async def vault_store(self, vault: 'Vault', key: Union[str, dict], value: Optional[Any] = None) -> 'Vault':
+        execute_datas = []
+        keys = []
+        is_dict = type(key) is dict
+
+        if is_dict:
+            for key, value in key.items():
+                hashed_key = fnv1a_64_signed(key)
+                if not (hashed_key in vault.data and vault.data[hashed_key] == value):
+                    keys.append((hashed_key, hashed_key))
+                    execute_datas.extend(await self.walk_execute_data(hashed_key, value))
+                    vault.data[hashed_key] = value
+        else:
+            hashed_key = fnv1a_64_signed(key)
+            if not (hashed_key in vault.data and vault.data[hashed_key] == value):
+                keys.append((hashed_key, hashed_key))
+                execute_datas.extend(await self.walk_execute_data(hashed_key, value))
+                vault.data[hashed_key] = value
+    
+        if execute_datas:
+            await asyncio.get_running_loop().run_in_executor(None, self.db_vault_store, await self.get_connection(), self.get_table(vault.owner, vault.group), keys, execute_datas)
+    
 
     def db_vault_delete(self, connection, table, key: str):
-        self.create_table(connection, table)
-        self.db_execute_clear(connection, table, key)
-        connection.commit()
+        with connection:
+            self.create_table(connection, table)
+            self.db_execute_delete(connection, table, key)
+            connection.commit()
     async def vault_delete(self, vault: 'Vault', key: str) -> 'Vault':
         hashed_key = fnv1a_64_signed(key)
         await asyncio.get_running_loop().run_in_executor(None, self.db_vault_delete, await self.get_connection(), self.get_table(vault.owner, vault.group), hashed_key)
@@ -160,9 +185,18 @@ class VaultManager():
         except Exception:
             pass
 
+    def db_vault_clear(self, connection, table):
+        with connection:
+            self.db_execute_clear(connection, table)
+            connection.commit()
+    async def vault_clear(self, vault: 'Vault') -> 'Vault':
+        await asyncio.get_running_loop().run_in_executor(None, self.db_vault_clear, await self.get_connection(), self.get_table(vault.owner, vault.group))
+        vault.data.clear()
+
     def db_vault_get_all(self, connection, table):
-        self.create_table(connection, table)
-        return self.db_get_all(connection, table)
+        with connection:
+            self.create_table(connection, table)
+            return self.db_get_all(connection, table)
     async def vault_get_all(self, vault: 'Vault'):
         return await asyncio.get_running_loop().run_in_executor(None, self.db_vault_get_all, await self.get_connection(), self.get_table(vault.owner, vault.group))
 
@@ -182,11 +216,14 @@ class Vault():
         self.group: Optional[str] = group
         self.data: Dict[str, Any] = {}
 
-    async def store(self, key: str, value: Any):
+    async def store(self, key: Union[str, dict], value: Optional[Any] = None):
         await self.vault_manager.vault_store(self, key, value)
 
     async def delete(self, key: str):
         await self.vault_manager.vault_delete(self, key)
+
+    async def clear(self):
+        await self.vault_manager.vault_clear(self)
 
     def get(self, key: str) -> Any:
         return self.data.get(fnv1a_64_signed(key))
