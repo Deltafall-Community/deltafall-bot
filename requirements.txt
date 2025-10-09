@@ -22,4 +22,4 @@ aiosqlite
 MangaDex.py
 rapidfuzz
 humanize
-aspw
+apsw
