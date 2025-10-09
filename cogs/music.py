@@ -29,12 +29,9 @@ class music(commands.Cog):
         else:
             vault = await self.vault_manager.get(voice_client.guild.id, "music")
             player = YTDLPMusicPlayer(voice_client, on_finished=self.on_track_end, on_start=self.on_track_start)
-            if (cf := vault.get("crossfade")) is not None:
-                player.crossfade = cf
-            if (cfl := vault.get("crossfade_length")) is not None:
-                player.crossfade_length = cfl
-            if (cfs := vault.get("crossfade_strength")) is not None:
-                player.crossfade_strength = cfs
+            player.crossfade = vault.get("crossfade", player.crossfade)
+            player.crossfade_length = vault.get("crossfade_length", player.crossfade_length)
+            player.crossfade_strength = vault.get("crossfade_strength", player.crossfade_strength)
         self.guilds[voice_client.guild.id] = player
         return player
 
@@ -134,9 +131,9 @@ class music(commands.Cog):
             strength = min(max(0.1, strength), 9.0)
             player.crossfade_strength = strength
         vault = await self.vault_manager.get(vc.guild.id, "music")
-        await vault.store("crossfade", player.crossfade)
-        await vault.store("crossfade_length", player.crossfade_length)
-        await vault.store("crossfade_strength", player.crossfade_strength)
+        await vault.store({"crossfade": player.crossfade,
+                           "crossfade_length": player.crossfade_length,
+                           "crossfade_strength": player.crossfade_strength})
         embed = discord.Embed(description=f"## Transition Set\nEnabled: {player.crossfade}\nDuration: {player.crossfade_length}\nStrength: {player.crossfade_strength}")
         await interaction.response.send_message(embed=embed)
 
