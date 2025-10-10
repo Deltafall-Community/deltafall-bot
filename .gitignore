@@ -3,5 +3,5 @@ config.json
 valentine/
 __pycache__/
 .vscode
-*.db
+*.db*
 phishing_sha

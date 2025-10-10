@@ -13,6 +13,7 @@ import sqlitecloud
 from libs.namuscheduler.scheduler import Scheduler
 from libs.namuphishingdetection.phishingdetector import PhishingDetector
 from libs.namuvaultmanager.vaultmanager import VaultManager
+from libs.namusettingmanager.discordsettingmanager import DiscordSettingManager
 
 logger = logging.getLogger('discord')
 logger.setLevel(logging.INFO)
@@ -53,6 +54,7 @@ class Bot(commands.Bot):
         self.scheduler = None
         self.phishing_detector = None
         self.vault_manager = VaultManager(sqlitecloud_vault, True, logger) if (sqlitecloud_vault := self.config.get("sqlitecloud-vault")) else VaultManager("vault.db", logger=logger)
+        self.setting_manager: DiscordSettingManager = DiscordSettingManager("data/settings.toml", self.vault_manager)
 
         self.logger = logger
         super().__init__(command_prefix=prefix if (prefix := self.config.get("prefix")) else "!", intents=discord.Intents.all())

@@ -1,0 +1,41 @@
+[user]
+title       = "User Settings"
+description = "settings that only applies to you"
+
+[user.fun]
+title       = "Fun"
+description = "fun stuff"
+
+[user.fun.miku]
+title       = "Miku"
+description = "im thinking miku miku oo ee oo"
+default     = true
+options      = [true, false]
+
+[user.fun.teto]
+title       = "Teto"
+description = "teto"
+default     = true
+options      = [true, false]
+
+[user.fun.petpet]
+title       = "Petpet"
+description = "allow other people to pet you"
+default     = true
+options      = [true, false]
+
+[user.fun.nerdify]
+title       = "Nerdify"
+description = "allow other people to 🤓☝️ your messages"
+default     = true
+options      = [true, false]
+
+[user.quote]
+title       = "Quote"
+description = "quote stuff"
+
+[user.quote.allow]
+title       = "Allow Quoting"
+description = "allow people to quote your messages"
+default     = true
+options      = [true, false]

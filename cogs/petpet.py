@@ -21,10 +21,10 @@ class petpetc(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message(self, message):
-        if message.author == self.bot.user:
-            return
         if message.content.lower() == "petpet":
             messager = await message.channel.fetch_message(message.reference.message_id)
+            if not await self.bot.setting_manager.get_user_setting(messager.author, ("fun", "petpet")):
+                return
             img = BytesIO(requests.get(messager.author.avatar.url).content)
             image = await self.generatepetpet(image=img)
             await message.channel.send(file=image, reference=message)
