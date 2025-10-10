@@ -32,7 +32,7 @@ class speechbubble(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message(self, message):
-        if message.content.lower() == "sb":
+        if message.content.lower() == "sb" and message.reference:
             messager = await message.channel.fetch_message(message.reference.message_id)
             if messager.author == self.bot.user:
                 return

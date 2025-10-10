@@ -101,7 +101,7 @@ class randomquote(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message(self, message):
-        if message.content.lower() == "aq" or message.content == "<@949479338275913799>":
+        if (message.content.lower() == "aq" or message.content == "<@949479338275913799>") and message.reference:
             messager = await message.channel.fetch_message(message.reference.message_id)
             if not await self.bot.setting_manager.get_user_setting(messager.author, ("quote", "allow")):
                 return

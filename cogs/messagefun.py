@@ -13,7 +13,7 @@ class messagefun(commands.Cog):
         #if "@someone" in message.content.lower():
         #    members = message.guild.members
         #    await message.channel.send(f'<@{members[random.randint(0, len(members) - 1)].id}>', reference=message)
-        if message.content.lower() == "nerdify":
+        if message.content.lower() == "nerdify" and message.reference:
             messager = await message.channel.fetch_message(message.reference.message_id)
             if not await self.bot.setting_manager.get_user_setting(messager.author, ("fun", "nerdify")):
                 return

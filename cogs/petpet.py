@@ -21,7 +21,7 @@ class petpetc(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message(self, message):
-        if message.content.lower() == "petpet":
+        if message.content.lower() == "petpet" and message.reference:
             messager = await message.channel.fetch_message(message.reference.message_id)
             if not await self.bot.setting_manager.get_user_setting(messager.author, ("fun", "petpet")):
                 return

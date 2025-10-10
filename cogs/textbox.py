@@ -214,7 +214,7 @@ class textbox(commands.Cog):
             image = await self.generatetextbox(avatar=Image.open(BytesIO(requests.get(message.author.avatar.url).content)), text=message.clean_content)
             await message.channel.send(file=image[0])
             await message.delete()
-        if message.content.lower() == "mtbq":
+        if message.content.lower() == "mtbq" and message.reference:
             messager = await message.channel.fetch_message(message.reference.message_id)
             if messager.content == "":
                 return await message.channel.send("cant", reference=message)
