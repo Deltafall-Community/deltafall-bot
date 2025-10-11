@@ -24,3 +24,5 @@ rapidfuzz
 humanize
 apsw
 toml
+cachetools
+numpy

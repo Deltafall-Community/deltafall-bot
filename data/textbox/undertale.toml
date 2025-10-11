@@ -1,0 +1,16 @@
+texture = "data/textbox/border/undertale.png" 
+scale = 2.0
+
+[text_position]
+x = 18
+y = 13
+    
+[margins]
+left = 13
+right = 13
+top = 13
+bottom = 13
+
+[size]
+x = 594
+y = 168
