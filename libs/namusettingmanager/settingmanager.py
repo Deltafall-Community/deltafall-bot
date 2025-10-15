@@ -1,6 +1,14 @@
-from typing import List, Union, Any
+from typing import List, Union, Any, Optional
 from dataclasses import dataclass, field
 import toml
+import json # only for toml workaround as of 08/2025
+
+@dataclass(slots=True)
+class Option:
+    name: str
+    title: str
+    description: str
+    extras: Optional[List[str]]
 
 @dataclass(slots=True)
 class Entry:
@@ -8,7 +16,8 @@ class Entry:
     title: str
     description: str
     default: Any
-    options: Union[bool, List[Any]]
+    options: Union[bool, str, List[Option]]
+    permissions: List[str]
 
 @dataclass(slots=True)
 class Page:
@@ -26,7 +35,7 @@ class Settings():
 
 class SettingManager():
     def __init__(self, path: str):
-        self.settings = toml.load(open(path, "r"))
+        self.settings = json.loads(json.dumps(toml.load(open(path, "r"))))
 
     def get(self, setting: str) -> Settings:
         setting = self.settings[setting]
@@ -38,7 +47,16 @@ class SettingManager():
                 page = Page(page, settings["title"], settings["description"])
                 for s, p in settings.items():
                     if type(p) is dict:
-                        page.entries.append(Entry(s, p["title"], p["description"], p["default"], bool if (options := p["options"]) == [True, False] or options == [False, True] else options))
+                        op = p["options"]
+                        if not (op == [True, False] or op == [False, True]):
+                            if type(op) is dict:
+                                options = []
+                                for en, ep in op.items():
+                                    options.append(Option(en, ep["title"], ep["description"], ep.get("extras", [])))
+                        else:
+                            options = bool
+                        page.entries.append(Entry(s, p["title"], p["description"], p.get("default"), options, p.get("permissions", [])))
+
                 pages.append(page)
         
         return Settings(setting, title, description, pages)

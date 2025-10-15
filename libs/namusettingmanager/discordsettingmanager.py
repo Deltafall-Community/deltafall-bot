@@ -17,3 +17,12 @@ class DiscordSettingManager(SettingManager):
                 for e in page.entries:
                     if e.name == entry[1]:
                         return vault.get(entry[0]+entry[1], e.default)
+                    
+    async def get_guild_setting(self, guild: discord.Guild, entry: Tuple[str]):
+        vault = await self.vault_manager.get(guild.id)
+        settings = self.get("server")
+        for page in settings.pages:
+            if page.name == entry[0]:
+                for e in page.entries:
+                    if e.name == entry[1]:
+                        return vault.get(entry[0]+entry[1], e.default)

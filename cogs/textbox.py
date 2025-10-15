@@ -100,7 +100,11 @@ class TextboxCommand(commands.Cog):
                 if content == "mtbmq":
                     await self.make_textbox(messager, MemoryTextbox, messager)
 
-        if message.channel.id == 1395744682402775080:
+        channels_get = await self.bot.setting_manager.get_guild_setting(message.guild, ("textbox", "channel"))
+        if type(channels_get) is not list:
+            channels_get = [e] if (e := channels_get) is not None else []
+
+        if message.channel.id in channels_get:
             await self.make_textbox(message, Textbox)
 
     @app_commands.command(name="textbox", description="makes a textbox")

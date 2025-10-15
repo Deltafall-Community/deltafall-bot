@@ -1,3 +1,34 @@
+# settings for deltaballin
+
+# vaild options:
+# toggle on/off: [true, false]
+# selecting channel in a guild: "channelselect"
+
+# all the permission attributes can be found here:
+# https://discordpy.readthedocs.io/en/latest/api.html#discord.Permissions
+# example:
+# if user has manage_channels permission
+# permission = ["manage_channels"]
+
+# default field is not required
+# if default field is missing then that entry stores only 1 thing
+# if default field is an empty list then that entry stores a list 
+
+[server]
+title       = "Server Settings"
+description = "settings that can be adjusted by the server moderators"
+
+[server.textbox]
+title       = "Textbox"
+description = "textbox stuff"
+
+[server.textbox.channel]
+title       = "Channels"
+description = "the text channels for deltarune textbox"
+default     =  []
+options     = {channelselect = {title = "Select Channels", description = "select channels for textbox", extras = ["text"]}}
+permissions = ["manage_channels"]
+
 [user]
 title       = "User Settings"
 description = "settings that only applies to you"
