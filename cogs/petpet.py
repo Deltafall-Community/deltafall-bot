@@ -33,10 +33,11 @@ class PetpetCommand(commands.Cog):
             messager = await message.channel.fetch_message(message.reference.message_id)
             if not await self.bot.setting_manager.get_user_setting(messager.author, ("fun", "petpet")):
                 return
+            image_url = messager.author.avatar.url
             if messager.attachments:
-                image_url = messager.attachments[0].url
-            else:
-                image_url = messager.author.avatar.url
+                img = messager.attachments[0]
+                if img and img.content_type and img.content_type[:img.content_type.find("/")] == "image":
+                    image_url = img.url
             await message.reply(file=await self.petpet(image_url))
 
     @app_commands.command(name="petpet", description="petpet")
@@ -47,7 +48,7 @@ class PetpetCommand(commands.Cog):
         if custom_image and custom_image.content_type and custom_image.content_type[:custom_image.content_type.find("/")] == "image":
             img = custom_image.url
         if not img:
-            await interaction.response.send_message("Invaild.",ephemeral=True)
+            return await interaction.response.send_message("Invaild.",ephemeral=True)
 
         await interaction.response.send_message(file=await self.petpet(img))
 

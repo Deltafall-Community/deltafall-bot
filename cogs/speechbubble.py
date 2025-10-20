@@ -1,18 +1,20 @@
 import discord
 from discord.ext import commands
 from discord import app_commands
-#from typing import Optional
+from typing import Union
+import asyncio
 
 from io import BytesIO
-import requests
+import aiohttp
 
 from PIL import Image
 
-class speechbubble(commands.Cog):
+class SpeechBubbleCommand(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    async def generatespeechbubble(self, img):
+    def gen_speechbubble(self, img: BytesIO):
+        img = Image.open(img)
         bg = Image.new("RGB", (img.size[0], img.size[1]))
         bg.putalpha(0)
         speechbubble = Image.open("data/speechbubble/speechbubble.png").resize((img.size[0], int(img.size[1] / 4)))
@@ -24,22 +26,29 @@ class speechbubble(commands.Cog):
             image_binary.seek(0)
             return discord.File(fp=image_binary, filename='image.png')
 
+    async def speechbubble(self, image: Union[BytesIO, str]) -> discord.File:
+        if type(image) is str:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(image) as response:
+                    image = BytesIO(await response.read())
+        return await asyncio.get_running_loop().run_in_executor(None, self.gen_speechbubble, image)
+
     @app_commands.command(name="speechbubble", description="makes a speechbubble")
-    async def textbox(self, interaction: discord.Interaction, image: discord.Attachment):
-        img = Image.open(BytesIO(requests.get(image.url).content))
-        image = await self.generatespeechbubble(img=img)
-        await interaction.response.send_message(file=image)
+    async def speechbubble_command(self, interaction: discord.Interaction, image: discord.Attachment):
+        if not (image and image.content_type and image.content_type[:image.content_type.find("/")] == "image"):
+            return await interaction.response.send_message("Invaild.",ephemeral=True)
+        await interaction.response.send_message(file=await self.speechbubble(image.url))
 
     @commands.Cog.listener()
-    async def on_message(self, message):
+    async def on_message(self, message: discord.Message):
         if message.content.lower() == "sb" and message.reference:
             messager = await message.channel.fetch_message(message.reference.message_id)
             if messager.author == self.bot.user:
                 return
             if messager.attachments:
-                img = Image.open(BytesIO(requests.get(messager.attachments[0].url).content))
-                image = await self.generatespeechbubble(img=img)
-                await message.channel.send(file=image, reference=message)
+                img = messager.attachments[0]
+                if img and img.content_type and img.content_type[:img.content_type.find("/")] == "image":
+                    await message.reply(file=await self.speechbubble(img.url))
 
 async def setup(bot):
-    await bot.add_cog(speechbubble(bot))
+    await bot.add_cog(SpeechBubbleCommand(bot))
