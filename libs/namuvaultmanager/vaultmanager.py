@@ -4,6 +4,7 @@ import logging
 import sys
 import os
 import math
+import copy
 import sqlitecloud
 from typing import List, Optional, Any, Dict, Tuple, Union
 import apsw
@@ -264,7 +265,7 @@ class Vault():
         await self.vault_manager.vault_clear(self)
 
     def get(self, key: str, default: Any = None) -> Any:
-        value = self.data.get(fnv1a_64_signed(key))
+        value = copy.copy(self.data.get(fnv1a_64_signed(key)))
         if value is None and default is not None:
             return default
         return value
