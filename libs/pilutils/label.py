@@ -1,7 +1,7 @@
 import math
 from PIL import ImageFont, Image, ImageDraw
 
-from typing import Tuple, List
+from typing import Tuple, List, Union
 from libs.utils.vector import Vector2D
 
 class LineBounds():
@@ -122,7 +122,7 @@ class LabelContainer():
             bbox.y = (chars[-1].line[0]+chars[-1].line[1]) + metrics[1]-1
         return (lines, chars, bbox)
 
-    def render(self, text: str):
+    def render(self, text: str) -> Union[Image.Image, List]:
         font = ImageFont.truetype(self.font, self.font_size)
         wrapped_text = self.wrap(text, font)
         lines = wrapped_text[0]
