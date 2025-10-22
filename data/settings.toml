@@ -57,7 +57,7 @@ options     = [true, false]
 
 [user.fun.nerdify]
 title       = "Nerdify"
-description = "allow other people to 🤓☝️ your messages"
+description = "allow other people to nerdify your messages"
 default     =  true
 options     = [true, false]
 
