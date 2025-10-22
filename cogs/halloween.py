@@ -1,5 +1,5 @@
 import discord
-from discord.ext import tasks, commands
+from discord.ext import commands
 from discord import app_commands
 from typing import Dict
 import random
@@ -92,15 +92,24 @@ class HalloweenCommand(commands.Cog):
         self.current_vaild_message = None
         self.channel = None
         self.vault_manager: VaultManager = self.bot.vault_manager
-
-    @commands.Cog.listener()
-    async def on_ready(self):
-        self.bot: discord.Client
-        self.channel = await self.bot.fetch_channel(1311950927527149568)
-        self.intervaltrickortreat.start()
+        self.msg_count = 0
+        self.channel_id = 1311950927527149568
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
+        if message.channel.id == self.channel_id and message.author != self.bot:
+            if self.msg_count >= 0:
+                self.msg_count += 1
+            else:
+                return
+
+            if self.msg_count > 20:
+                self.msg_count = -1
+                await asyncio.sleep(random.randint(1, 60))
+                msg = await message.channel.send("trick or treat")
+                self.current_vaild_message = msg
+                self.msg_count = 0
+
         if self.current_vaild_message and message.reference and message.reference.message_id == self.current_vaild_message.id:
             if message.content.lower() == "treat":
                 self.current_vaild_message = None
@@ -131,13 +140,6 @@ class HalloweenCommand(commands.Cog):
             elif message.content.lower() == "trick":
                 self.current_vaild_message = None
                 await message.reply(content=random.sample(self.jumpscare_gifs, 1)[0])
-                
-
-    @tasks.loop(seconds=1)
-    async def intervaltrickortreat(self):
-        msg = await self.channel.send("trick or treat")
-        self.current_vaild_message = msg
-        self.intervaltrickortreat.change_interval(hours=random.uniform(1.0, 3.0))
 
     @app_commands.command(name="candy", description="halloween")
     async def candy(self, interaction: discord.Interaction):
