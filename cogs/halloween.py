@@ -110,7 +110,7 @@ class HalloweenCommand(commands.Cog):
                 self.current_vaild_message = msg
                 self.msg_count = 0
 
-        if self.current_vaild_message and message.reference and message.reference.message_id == self.current_vaild_message.id:
+        if self.current_vaild_message:
             if message.content.lower() == "treat":
                 self.current_vaild_message = None
                 give_out = {}
