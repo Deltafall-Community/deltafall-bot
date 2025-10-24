@@ -196,6 +196,7 @@ class ClubCommand(commands.Cog):
         )
         self.bot.tree.add_command(self.club_ping_ctx_menu)
         self.clubs_cache = {}
+        self.group.allowed_installs = discord.app_commands.AppInstallationType(guild=True, user=False)
 
     async def clubs_autocomplete(self, interaction: discord.Interaction, current: str) -> List[app_commands.Choice[str]]:
         matches = process.extract(

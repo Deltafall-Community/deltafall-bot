@@ -81,6 +81,7 @@ class ReminderCommand(commands.Cog):
     group = app_commands.Group(name="remind", description="remind you")
 
     @group.command(name="create", description="make reminder")
+    @app_commands.allowed_installs(guilds=True, users=False)
     async def create_reminder(self, interaction: discord.Interaction, on: str, message: Optional[str]):
         await interaction.response.defer()
         on: datetime = dateparser.parse(on)
@@ -91,6 +92,7 @@ class ReminderCommand(commands.Cog):
         await interaction.followup.send(f"Reminder{f": {message} " if message else " "}going off <t:{str(int(on.timestamp()))}:R>.", allowed_mentions=discord.AllowedMentions(users=[interaction.user], everyone=False, roles=False))
 
     @group.command(name="list", description="lists reminders")
+    @app_commands.allowed_installs(guilds=True, users=False)
     async def list_reminder(self, interaction: discord.Interaction):
         await interaction.response.defer()
         reminder_embeds = [discord.Embed(description="## Reminder(s)", color=discord.Color.from_rgb(255,255,255))]
@@ -107,6 +109,7 @@ class ReminderCommand(commands.Cog):
         return await paginator.send(interaction, override_page_kwargs=True, ephemeral=True)
 
     @group.command(name="delete", description="deletes reminder")
+    @app_commands.allowed_installs(guilds=True, users=False)
     @app_commands.autocomplete(search=reminder_autocomplete)
     async def delete_reminder(self, interaction: discord.Interaction, search: Optional[str], id: Optional[int]):
         await interaction.response.defer()

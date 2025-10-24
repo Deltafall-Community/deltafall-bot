@@ -80,6 +80,7 @@ class randomquote(commands.Cog):
         return await self.event_loop.run_in_executor(None, self.check_connection)
 
     @app_commands.command(name="random_quote", description="get random quote")
+    @app_commands.allowed_installs(guilds=True, users=False)
     async def quote(self,
     interaction: discord.Interaction,
     id: Optional[int]):
@@ -92,6 +93,7 @@ class randomquote(commands.Cog):
         await interaction.response.send_message(f'{quote.content}\n### `- {quote.author} | ID: {quote.id}`', allowed_mentions=discord.AllowedMentions.none())
 
     @app_commands.command(name="add_quote", description="add a quote")
+    @app_commands.allowed_installs(guilds=True, user=False)
     async def addquote(self, interaction: discord.Interaction, quote: str, by: str):
         if not interaction.user.guild_permissions.manage_messages:
             await interaction.response.send_message("You dont have the permission to use this command.",ephemeral=True)

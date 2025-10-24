@@ -197,6 +197,7 @@ class SettingsCommand(commands.Cog):
         self.bot = bot
         self.vault_manager: VaultManager = self.bot.vault_manager
         self.setting_manager: DiscordSettingManager = self.bot.setting_manager
+        self.group.allowed_installs = discord.app_commands.AppInstallationType(guild=True, user=False)
 
     group = app_commands.Group(name="settings", description="settings")
 

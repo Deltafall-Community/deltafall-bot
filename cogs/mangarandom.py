@@ -8,6 +8,7 @@ class MangaRandom(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.mgd = MangaDexAsync()
+        self.group.allowed_installs = discord.app_commands.AppInstallationType(guild=True, user=True)
 
     group = app_commands.Group(name="manga", description="manga stuff")
 
