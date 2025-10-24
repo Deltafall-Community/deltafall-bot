@@ -148,7 +148,7 @@ python main.py
   <tr>
     <td rowspan="9">music</td>
     <td>current_playing</td>
-    <td>Currently playing music.</td>
+    <td>Displays the currently playing music.</td>
     <td>-</td>
   </tr>
   <tr>
@@ -239,3 +239,4 @@ python main.py
     <td>`text:` The body text of the textbox<br>`name:` The displayed name on the textbox<br>`asterisk:` Adds an asterisk to the start of the textbox, makes it more authentic to some UT characters<br>`portrait:` Allows you to pick between a collection of UT/DR characters for the textbox<br>`animated:` Animates the textbox into a GIF to replicate a UT/DR textbox<br>`custom_portrait:` Allows you to add a custom image to the textbox</td>
   </tr>
 </tbody></table>
+
