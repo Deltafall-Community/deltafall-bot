@@ -231,12 +231,16 @@ python main.py
   <tr>
     <td colspan="2">speechbubble</td>
     <td>Adds a reaction transparent speech bubble to an image.</td>
-    <td>`image:` The image you want to add the speech bubble to</td>
+    <td>image: The image you want to add the speech bubble to</td>
   </tr>
   <tr>
     <td colspan="2">textbox</td>
     <td>Creates a highly customizable Undertale/Deltarune style textbox.</td>
-    <td>`text:` The body text of the textbox<br>`name:` The displayed name on the textbox<br>`asterisk:` Adds an asterisk to the start of the textbox, makes it more authentic to some UT characters<br>`portrait:` Allows you to pick between a collection of UT/DR characters for the textbox<br>`animated:` Animates the textbox into a GIF to replicate a UT/DR textbox<br>`custom_portrait:` Allows you to add a custom image to the textbox</td>
+    <td>text: The body text of the textbox<br>name: The displayed name on the textbox<br>asterisk: Adds an asterisk to the start of the textbox, makes it more authentic to some UT characters<br>portrait: Allows you to pick between a collection of UT/DR characters for the textbox<br>animated: Animates the textbox into a GIF to replicate a UT/DR textbox<br>custom_portrait: Allows you to add a custom image to the textbox</td>
+  </tr>
+  <tr>
+    <td colspan="2">wiki</td>
+    <td>(deprecated) Pulls a given article from the Deltafall Wiki</td>
+    <td>search: Article to display</td>
   </tr>
 </tbody></table>
-
