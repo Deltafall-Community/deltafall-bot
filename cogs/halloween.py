@@ -142,6 +142,7 @@ class HalloweenCommand(commands.Cog):
                 await message.reply(content=random.sample(self.jumpscare_gifs, 1)[0])
 
     @app_commands.command(name="candy", description="halloween")
+    @app_commands.allowed_installs(guilds=True, users=False)
     async def candy(self, interaction: discord.Interaction):
         vault = await self.vault_manager.get(interaction.user.id)
         candies: Dict = vault.get("halloween2025Candies", {})
@@ -155,6 +156,7 @@ class HalloweenCommand(commands.Cog):
         await interaction.response.send_message(embed=embed)
 
     @app_commands.command(name="give", description="halloween")
+    @app_commands.allowed_installs(guilds=True, users=False)
     async def give(self, interaction: discord.Interaction, candy_name: str, user: discord.User, amount: int):
         if candy_name not in self.vaild_candies:
             return await interaction.response.send_message(content=f"{candy_name} is not a vaild candy name")
