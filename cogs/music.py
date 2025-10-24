@@ -21,6 +21,7 @@ class music(commands.Cog):
         self.bot = bot
         self.vault_manager: VaultManager = self.bot.vault_manager
         self.guilds = {}
+        self.group.allowed_installs = discord.app_commands.AppInstallationType(guild=True, user=False)
 
     async def get_guild_player(self, voice_client: discord.VoiceClient):
         player = self.guilds.get(voice_client.guild.id)

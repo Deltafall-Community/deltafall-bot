@@ -34,6 +34,7 @@ class SpeechBubbleCommand(commands.Cog):
         return await asyncio.get_running_loop().run_in_executor(None, self.gen_speechbubble, image)
 
     @app_commands.command(name="speechbubble", description="makes a speechbubble")
+    @app_commands.allowed_installs(guilds=True, users=True)
     async def speechbubble_command(self, interaction: discord.Interaction, image: discord.Attachment):
         if not (image and image.content_type and image.content_type[:image.content_type.find("/")] == "image"):
             return await interaction.response.send_message("Invaild.",ephemeral=True)

@@ -85,6 +85,7 @@ class wiki(commands.Cog):
         return embed
 
     @app_commands.command(name="wiki", description="deltafall wiki content")
+    @app_commands.allowed_installs(guilds=True, users=True)
     async def dfwiki(
         self,
         interaction: discord.Interaction,

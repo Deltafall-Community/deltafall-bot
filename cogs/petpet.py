@@ -41,6 +41,7 @@ class PetpetCommand(commands.Cog):
             await message.reply(file=await self.petpet(image_url))
 
     @app_commands.command(name="petpet", description="petpet")
+    @app_commands.allowed_installs(guilds=True, users=True)
     async def pet(self, interaction: discord.Interaction, user: Optional[discord.Member], custom_image: Optional[discord.Attachment]):
         img = None
         if user:
