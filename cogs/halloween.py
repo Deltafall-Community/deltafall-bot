@@ -81,7 +81,8 @@ class HalloweenCommand(commands.Cog):
             "tungsten",
             "toby fox",
             "flavorless",
-            "purple"
+            "purple",
+            "estrogen"
         ]
         self.jumpscare_gifs = [
             "https://tenor.com/view/uni-kuroneko-black-cat-cat-jumping-cat-jumpscare-chey-gif-5697602643041941027",
