@@ -134,6 +134,7 @@ class TextboxCommand(commands.Cog):
         app_commands.Choice(name="catti", value="catti.webp"),
         app_commands.Choice(name="catty", value="catty.webp")])
     @app_commands.allowed_installs(guilds=True, users=True)
+    @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
     async def textbox(
         self,
         interaction: discord.Interaction,

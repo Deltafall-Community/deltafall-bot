@@ -25,6 +25,7 @@ class baby(commands.Cog):
 
     @app_commands.command(name="make_baby", description="baby")
     @app_commands.allowed_installs(guilds=True, users=True)
+    @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
     async def baby(self, interaction: discord.Interaction, first_person: str, second_person: str):
         babyname = (first_person[:int(len(first_person) / 2)] + second_person[int(len(second_person) / 2):])
 
