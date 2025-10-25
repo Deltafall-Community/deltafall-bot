@@ -1,7 +1,7 @@
 import discord
 from discord.ext import commands
 from discord import app_commands
-from typing import Dict
+from typing import Dict, Optional
 import random
 import asyncio
 
@@ -144,8 +144,9 @@ class HalloweenCommand(commands.Cog):
 
     @app_commands.command(name="candy", description="halloween")
     @app_commands.allowed_installs(guilds=True, users=False)
-    async def candy(self, interaction: discord.Interaction):
-        vault = await self.vault_manager.get(interaction.user.id)
+    async def candy(self, interaction: discord.Interaction, user: Optional[discord.User] = None):
+        target = user or interaction.user # If this implementation is fucked and the bot implodes uhhhh it wasn't me :p
+        vault = await self.vault_manager.get(target.id)
         candies: Dict = vault.get("halloween2025Candies", {})
         
         if candies:
@@ -153,7 +154,7 @@ class HalloweenCommand(commands.Cog):
         else:
             candies_list = "Nothing yet."
         
-        embed=discord.Embed(title="", description="## Candies 🍫\n"+candies_list, color=discord.Color.orange())
+        embed=discord.Embed(title="", description="## "+target.display_name+"'s candies 🍫\n"+candies_list, color=discord.Color.orange())
         await interaction.response.send_message(embed=embed)
 
     @app_commands.command(name="give", description="halloween")
