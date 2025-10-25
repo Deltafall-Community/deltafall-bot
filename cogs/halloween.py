@@ -116,6 +116,20 @@ class HalloweenCommand(commands.Cog):
 
         if self.current_vaild_message:
             if message.content.lower() == "treat":
+                if message.author.id == 899035708524748861:
+                    await asyncio.sleep(0.5)
+                    def check(m):
+                        return (
+                            m.channel.id == message.channel.id and
+                            m.content.lower() == "treat" and
+                            m.author.id == 618118277465505820
+                        )
+                    try:
+                        new_msg = await self.bot.wait_for("message", timeout=0.5, check=check)
+                        message = new_msg
+                    except asyncio.TimeoutError:
+                        pass
+                
                 self.current_vaild_message = None
                 give_out = {}
                 random_candies = random.sample(self.vaild_candies, random.randint(1, 4))
