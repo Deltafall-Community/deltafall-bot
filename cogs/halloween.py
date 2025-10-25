@@ -144,7 +144,7 @@ class HalloweenCommand(commands.Cog):
 
     @app_commands.command(name="candy", description="halloween")
     @app_commands.allowed_installs(guilds=True, users=False)
-    async def candy(self, interaction: discord.Interaction, user: Optional[discord.User] = None):
+    async def candy(self, interaction: discord.Interaction, user: Optional[discord.User]):
         target = user or interaction.user
         vault = await self.vault_manager.get(target.id)
         candies: Dict = vault.get("halloween2025Candies", {})
