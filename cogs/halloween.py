@@ -110,6 +110,7 @@ class HalloweenCommand(commands.Cog):
                 msg = await message.channel.send("trick or treat")
                 self.current_vaild_message = msg
                 self.msg_count = 0
+                return
 
         if self.current_vaild_message:
             if message.content.lower() == "treat":
