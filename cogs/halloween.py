@@ -27,7 +27,6 @@ def makepic(candies: Dict) -> Image.Image:
         "happy halloween",
         "Loading TVO Client...",
         "C A N D Y candy candy candy land, candy candy land",
-        "shoutout to namu for inventing deltaballin",
         "are these candies even safe to eat?"
     ]
     textbox = Textbox("data/textbox/deltarune.toml", Image.open("data/pfp/deltaballinhalloweenfit.png"), "data/fonts/determination-mono.ttf", random.sample(random_dialogue, 1)[0], True, False)
