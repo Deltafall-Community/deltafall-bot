@@ -154,8 +154,8 @@ class HalloweenCommand(commands.Cog):
         else:
             candies_list = "Nothing yet."
         
-        embed=discord.Embed(title="", description="## "+target.display_name+"'s candies 🍫\n"+candies_list, color=discord.Color.orange())
-        await interaction.response.send_message(embed=embed)
+        embed=discord.Embed(title="", description=f"## {target.mention}'s candies 🍫\n"+candies_list, color=discord.Color.orange())
+        await interaction.response.send_message(embed=embed, allowed_mentions=discord.AllowedMentions.none())
 
     @app_commands.command(name="give", description="halloween")
     @app_commands.allowed_installs(guilds=True, users=False)
