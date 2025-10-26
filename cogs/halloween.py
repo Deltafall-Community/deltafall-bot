@@ -183,28 +183,28 @@ class HalloweenCommand(commands.Cog):
         if amount < 1:
             return await interaction.response.send_message(content="you cant just give someone 0 candies")
 
-        eater_vault = await self.vault_manager.get(interaction.user.id)
-        eater_candies: Dict = eater_vault.get("halloween2025Candies", {})
+        giver_vault = await self.vault_manager.get(interaction.user.id)
+        giver_candies: Dict = giver_vault.get("halloween2025Candies", {})
 
         reciever_vault = await self.vault_manager.get(user.id)
         reciever_candies: Dict = reciever_vault.get("halloween2025Candies", {})
 
-        if (candy_amount := eater_candies.get(candy_name)):
+        if (candy_amount := giver_candies.get(candy_name)):
             if candy_amount < amount:
                 return await interaction.response.send_message(content=f"you only have {candy_amount} of {candy_name}")
             else:
                 if candy_name not in reciever_candies:
                     reciever_candies[candy_name] = 0
 
-                eater_candies[candy_name] -= amount
+                giver_candies[candy_name] -= amount
                 reciever_candies[candy_name] += amount
 
-                if eater_candies[candy_name] < 1:
-                    del eater_candies[candy_name]
+                if giver_candies[candy_name] < 1:
+                    del giver_candies[candy_name]
         else:
             return await interaction.response.send_message(content=f"you dont have {candy_name}")
 
-        await eater_vault.store("halloween2025Candies", eater_candies)
+        await giver_vault.store("halloween2025Candies", giver_candies)
         await reciever_vault.store("halloween2025Candies", reciever_candies)
 
         await interaction.response.send_message(content=f"{user.mention} congrats on your new {amount} {candy_name} candy from {interaction.user.mention}")
