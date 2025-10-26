@@ -100,6 +100,12 @@ class HalloweenCommand(commands.Cog):
             "https://tenor.com/view/cat-jumpscare-box-gif-12399387153107465639",
             "https://tenor.com/view/cat-flying-flying-cat-jumpscare-jump-gif-20372835"
         ]
+        self.eat_outcomes = ["yum"] * 10 + [
+            "candy was spiked D:",
+            "candy had razor blades in it D:"
+            "candy had laxatives in it D: (shits loudly)"
+            "```ansi\n[2;32mthe candy was radioactive????????\n```"
+        ]
         self.current_vaild_message = None
         self.channel = None
         self.vault_manager: VaultManager = self.bot.vault_manager
@@ -177,31 +183,61 @@ class HalloweenCommand(commands.Cog):
         if amount < 1:
             return await interaction.response.send_message(content="you cant just give someone 0 candies")
 
-        giver_vault = await self.vault_manager.get(interaction.user.id)
-        giver_candies: Dict = giver_vault.get("halloween2025Candies", {})
+        eater_vault = await self.vault_manager.get(interaction.user.id)
+        eater_candies: Dict = eater_vault.get("halloween2025Candies", {})
 
         reciever_vault = await self.vault_manager.get(user.id)
         reciever_candies: Dict = reciever_vault.get("halloween2025Candies", {})
 
-        if (candy_amount := giver_candies.get(candy_name)):
+        if (candy_amount := eater_candies.get(candy_name)):
             if candy_amount < amount:
                 return await interaction.response.send_message(content=f"you only have {candy_amount} of {candy_name}")
             else:
                 if candy_name not in reciever_candies:
                     reciever_candies[candy_name] = 0
 
-                giver_candies[candy_name] -= amount
+                eater_candies[candy_name] -= amount
                 reciever_candies[candy_name] += amount
 
-                if giver_candies[candy_name] < 1:
-                    del giver_candies[candy_name]
+                if eater_candies[candy_name] < 1:
+                    del eater_candies[candy_name]
         else:
             return await interaction.response.send_message(content=f"you dont have {candy_name}")
 
-        await giver_vault.store("halloween2025Candies", giver_candies)
+        await eater_vault.store("halloween2025Candies", eater_candies)
         await reciever_vault.store("halloween2025Candies", reciever_candies)
 
         await interaction.response.send_message(content=f"{user.mention} congrats on your new {amount} {candy_name} candy from {interaction.user.mention}")
+
+        @app_commands.command(name="eat", description="halloween")
+        @app_commands.allowed_installs(guilds=True, users=False)
+        async def give(self, interaction: discord.Interaction, candy_name: str):
+            candy_name = candy_name.lower()
+            if candy_name not in self.vaild_candies:
+                return await interaction.response.send_message(content=f"{candy_name} is not a vaild candy name")
+
+            eater_vault = await self.vault_manager.get(interaction.user.id)
+            eater_candies: Dict = eater_vault.get("halloween2025Candies", {})
+
+            if (candy_amount := eater_candies.get(candy_name)):
+                if candy_amount < 1:
+                    return await interaction.response.send_message(content=f"https://tenor.com/view/byuntear-meme-reaction-hungry-ready-to-eat-gif-13927671183202449503 (you have no {candy_name})")
+                else:
+                    eater_candies[candy_name] -= 1
+
+                    if eater_candies[candy_name] < 1:
+                        del eater_candies[candy_name]
+            else:
+                return await interaction.response.send_message(content=f"https://tenor.com/view/byuntear-meme-reaction-hungry-ready-to-eat-gif-13927671183202449503 (you have no {candy_name})")
+
+            await eater_vault.store("halloween2025Candies", eater_candies)
+
+            if candy_name in ("estrogen", "progesterone", "spiro"):
+                await interaction.response.send_message(content="man you alr a girl that didn't do anything")
+            elif candy_name == "testosterone":
+                await interaction.response.send_message(content="man you alr a boy that didn't do anything")
+            else:
+                await interaction.response.send_message(content=random.sample(self.eat_outcomes, 1)[0])
 
 async def setup(bot):
     await bot.add_cog(HalloweenCommand(bot))
