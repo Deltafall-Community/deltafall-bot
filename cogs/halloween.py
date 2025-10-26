@@ -100,7 +100,7 @@ class HalloweenCommand(commands.Cog):
             "https://tenor.com/view/cat-jumpscare-box-gif-12399387153107465639",
             "https://tenor.com/view/cat-flying-flying-cat-jumpscare-jump-gif-20372835"
         ]
-        self.eat_outcomes = ["yum"] * 10 + [
+        self.special_eat_outcomes = [
             "candy was spiked D:",
             "candy had razor blades in it D:"
             "candy had laxatives in it D: (shits loudly)"
@@ -220,24 +220,22 @@ class HalloweenCommand(commands.Cog):
         eater_candies: Dict = eater_vault.get("halloween2025Candies", {})
 
         if (candy_amount := eater_candies.get(candy_name)):
-            if candy_amount < 1:
-                return await interaction.response.send_message(content=f"https://tenor.com/view/byuntear-meme-reaction-hungry-ready-to-eat-gif-13927671183202449503 (you have no {candy_name})")
-            else:
+            if candy_amount > 0:
                 eater_candies[candy_name] -= 1
 
                 if eater_candies[candy_name] < 1:
                     del eater_candies[candy_name]
-        else:
-            return await interaction.response.send_message(content=f"https://tenor.com/view/byuntear-meme-reaction-hungry-ready-to-eat-gif-13927671183202449503 (you have no {candy_name})")
-            
-        await eater_vault.store("halloween2025Candies", eater_candies)
 
-        if candy_name in ("estrogen", "progesterone", "spiro"):
-            await interaction.response.send_message(content="man you alr a girl that didn't do anything")
-        elif candy_name == "testosterone":
-            await interaction.response.send_message(content="man you alr a boy that didn't do anything")
-        else:
-            await interaction.response.send_message(content=random.sample(self.eat_outcomes, 1)[0])
+                if candy_name in ("estrogen", "progesterone", "spiro"):
+                    await interaction.response.send_message(content="man you alr a girl that didn't do anything")
+                elif candy_name == "testosterone":
+                    await interaction.response.send_message(content="man you alr a boy that didn't do anything")
+                else:
+                    await interaction.response.send_message(content=random.sample(self.special_eat_outcomes, 1)[0] if random.getrandbits(1) else "yum")
+
+                return await eater_vault.store("halloween2025Candies", eater_candies)
+            
+        await interaction.response.send_message(content=f"https://tenor.com/view/byuntear-meme-reaction-hungry-ready-to-eat-gif-13927671183202449503 (you have no {candy_name})")
 
 async def setup(bot):
     await bot.add_cog(HalloweenCommand(bot))
