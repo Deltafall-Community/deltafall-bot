@@ -209,6 +209,70 @@ class HalloweenCommand(commands.Cog):
 
         await interaction.response.send_message(content=f"{user.mention} congrats on your new {amount} {candy_name} candy from {interaction.user.mention}")
 
+    @app_commands.command(name="request_candy", description="halloween")
+    @app_commands.allowed_installs(guilds=True, users=False)
+    async def request(self, interaction: discord.Interaction, candy_name: str, user: discord.User, amount: int):
+        candy_name = candy_name.lower()
+        if candy_name not in self.vaild_candies:
+            return await interaction.response.send_message(content=f"{candy_name} is not a vaild candy name")
+        if amount < 1:
+            return await interaction.response.send_message(content="you cant just ask for 0 candies")
+
+        giver_vault = await self.vault_manager.get(user.id)
+        giver_candies: Dict = giver_vault.get("halloween2025Candies", {})
+
+        reciever_vault = await self.vault_manager.get(interaction.user.id)
+        reciever_candies: Dict = reciever_vault.get("halloween2025Candies", {})
+
+        class ConfirmView(discord.ui.View):
+            def __init__(self):
+                super().__init__(timeout=1800)
+                self.value = None
+
+            @discord.ui.button(label="Accept", style=discord.ButtonStyle.green)
+            async def accept(self, interaction_button: discord.Interaction, button: discord.ui.Button):
+                if interaction_button.user.id != user.id:
+                    return await interaction_button.response.send_message("wasn't asking you dummy", ephemeral=True)
+                self.value = True
+                self.stop()
+                await interaction_button.response.edit_original_response(content=f"{user.display_name} accepted the candy transfer", view=None)
+
+            @discord.ui.button(label="Decline", style=discord.ButtonStyle.red)
+            async def decline(self, interaction_button: discord.Interaction, button: discord.ui.Button):
+                if interaction_button.user.id != user.id:
+                    return await interaction_button.response.send_message("wasn't asking you dummy", ephemeral=True)
+                self.value = False
+                self.stop()
+                await interaction_button.response.edit_original_response(content=f"{user.display_name} declined the candy transfer", view=None)
+
+        if (candy_amount := giver_candies.get(candy_name)):            
+            if candy_amount < amount:
+                return await interaction.response.send_message(content=f"{user.display_name} only has {candy_amount} of {candy_name}")
+            else:
+                view = ConfirmView()
+                await interaction.response.send_message(content=f"{user.mention}, {interaction.user.display_name} wants {amount} {candy_name} candies from you", view=view)
+                await view.wait()
+                if view.value is None:
+                    return await interaction.response.edit_original_response(content=f"{user.mention}, {interaction.user.display_name} wants {amount} {candy_name} candies from you (expired)", view=None)
+                if not view.value:
+                    return
+                
+                if candy_name not in reciever_candies:
+                    reciever_candies[candy_name] = 0
+
+                giver_candies[candy_name] -= amount
+                reciever_candies[candy_name] += amount
+
+                if giver_candies[candy_name] < 1:
+                    del giver_candies[candy_name]
+        else:
+            return await interaction.response.send_message(content=f"{user.display_name} doesn't have {candy_name}")
+
+        await giver_vault.store("halloween2025Candies", giver_candies)
+        await reciever_vault.store("halloween2025Candies", reciever_candies)
+
+        await interaction.response.edit_original_response(content=f"{user.mention} congrats on your new {amount} {candy_name} candy from {interaction.user.mention}")
+
     @app_commands.command(name="eat", description="halloween")
     @app_commands.allowed_installs(guilds=True, users=False)
     async def eat(self, interaction: discord.Interaction, candy_name: str):
