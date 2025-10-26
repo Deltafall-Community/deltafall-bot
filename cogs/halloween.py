@@ -209,35 +209,35 @@ class HalloweenCommand(commands.Cog):
 
         await interaction.response.send_message(content=f"{user.mention} congrats on your new {amount} {candy_name} candy from {interaction.user.mention}")
 
-        @app_commands.command(name="eat", description="halloween")
-        @app_commands.allowed_installs(guilds=True, users=False)
-        async def eat(self, interaction: discord.Interaction, candy_name: str):
-            candy_name = candy_name.lower()
-            if candy_name not in self.vaild_candies:
-                return await interaction.response.send_message(content=f"{candy_name} is not a vaild candy name")
+    @app_commands.command(name="eat", description="halloween")
+    @app_commands.allowed_installs(guilds=True, users=False)
+    async def eat(self, interaction: discord.Interaction, candy_name: str):
+        candy_name = candy_name.lower()
+        if candy_name not in self.vaild_candies:
+            return await interaction.response.send_message(content=f"{candy_name} is not a vaild candy name")
 
-            eater_vault = await self.vault_manager.get(interaction.user.id)
-            eater_candies: Dict = eater_vault.get("halloween2025Candies", {})
+        eater_vault = await self.vault_manager.get(interaction.user.id)
+        eater_candies: Dict = eater_vault.get("halloween2025Candies", {})
 
-            if (candy_amount := eater_candies.get(candy_name)):
-                if candy_amount < 1:
-                    return await interaction.response.send_message(content=f"https://tenor.com/view/byuntear-meme-reaction-hungry-ready-to-eat-gif-13927671183202449503 (you have no {candy_name})")
-                else:
-                    eater_candies[candy_name] -= 1
-
-                    if eater_candies[candy_name] < 1:
-                        del eater_candies[candy_name]
-            else:
+        if (candy_amount := eater_candies.get(candy_name)):
+            if candy_amount < 1:
                 return await interaction.response.send_message(content=f"https://tenor.com/view/byuntear-meme-reaction-hungry-ready-to-eat-gif-13927671183202449503 (you have no {candy_name})")
-
-            await eater_vault.store("halloween2025Candies", eater_candies)
-
-            if candy_name in ("estrogen", "progesterone", "spiro"):
-                await interaction.response.send_message(content="man you alr a girl that didn't do anything")
-            elif candy_name == "testosterone":
-                await interaction.response.send_message(content="man you alr a boy that didn't do anything")
             else:
-                await interaction.response.send_message(content=random.sample(self.eat_outcomes, 1)[0])
+                eater_candies[candy_name] -= 1
+
+                if eater_candies[candy_name] < 1:
+                    del eater_candies[candy_name]
+        else:
+            return await interaction.response.send_message(content=f"https://tenor.com/view/byuntear-meme-reaction-hungry-ready-to-eat-gif-13927671183202449503 (you have no {candy_name})")
+            
+        await eater_vault.store("halloween2025Candies", eater_candies)
+
+        if candy_name in ("estrogen", "progesterone", "spiro"):
+            await interaction.response.send_message(content="man you alr a girl that didn't do anything")
+        elif candy_name == "testosterone":
+            await interaction.response.send_message(content="man you alr a boy that didn't do anything")
+        else:
+            await interaction.response.send_message(content=random.sample(self.eat_outcomes, 1)[0])
 
 async def setup(bot):
     await bot.add_cog(HalloweenCommand(bot))
