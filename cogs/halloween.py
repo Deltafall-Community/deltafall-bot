@@ -211,7 +211,7 @@ class HalloweenCommand(commands.Cog):
 
         @app_commands.command(name="eat", description="halloween")
         @app_commands.allowed_installs(guilds=True, users=False)
-        async def give(self, interaction: discord.Interaction, candy_name: str):
+        async def eat(self, interaction: discord.Interaction, candy_name: str):
             candy_name = candy_name.lower()
             if candy_name not in self.vaild_candies:
                 return await interaction.response.send_message(content=f"{candy_name} is not a vaild candy name")
