@@ -28,7 +28,8 @@ def makepic(candies: Dict) -> Image.Image:
         "Loading TVO Client...",
         "C A N D Y candy candy candy land, candy candy land",
         "shoutout to namu for inventing deltaballin",
-        "are these candies even safe to eat?"
+        "are these candies even safe to eat?",
+        "I put razor blades in your candies"
     ]
     textbox = Textbox("data/textbox/deltarune.toml", Image.open("data/pfp/deltaballinhalloweenfit.png"), "data/fonts/determination-mono.ttf", random.sample(random_dialogue, 1)[0], True, False)
     textbox = textbox.render()[0]
@@ -84,7 +85,8 @@ class HalloweenCommand(commands.Cog):
             "purple",
             "estrogen",
             "progesterone",
-            "spiro"
+            "spiro",
+            "testosterone"
         ]
         self.jumpscare_gifs = [
             "https://tenor.com/view/uni-kuroneko-black-cat-cat-jumping-cat-jumpscare-chey-gif-5697602643041941027",
