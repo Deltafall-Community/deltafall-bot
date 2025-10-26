@@ -17,6 +17,7 @@ def makepic(candies: Dict) -> Image.Image:
     random_dialogue = [
         "happy halloween or something",
         "meow",
+        "mmrp",
         "im not server cat",
         "spook",
         "boo",
@@ -29,7 +30,9 @@ def makepic(candies: Dict) -> Image.Image:
         "C A N D Y candy candy candy land, candy candy land",
         "shoutout to namu for inventing deltaballin",
         "are these candies even safe to eat?",
-        "I put razor blades in your candies"
+        "I put razor blades in your candies",
+        "Don't run into the road",
+        "Big Namu Corp will soon silence me, please hel"
     ]
     textbox = Textbox("data/textbox/deltarune.toml", Image.open("data/pfp/deltaballinhalloweenfit.png"), "data/fonts/determination-mono.ttf", random.sample(random_dialogue, 1)[0], True, False)
     textbox = textbox.render()[0]
@@ -94,7 +97,8 @@ class HalloweenCommand(commands.Cog):
             "https://tenor.com/view/uni-kuroneko-black-cat-cat-jumping-cat-jumpscare-chey-gif-5697602643041941027",
             "https://tenor.com/view/but-heres-the-kicker-heres-the-kicker-but-heres-cat-jumpscare-gif-26573900",
             "https://tenor.com/view/cat-cat-meme-jumpscare-jump-turn-around-gif-2261440711797458974",
-            "https://tenor.com/view/cat-jumpscare-box-gif-12399387153107465639"
+            "https://tenor.com/view/cat-jumpscare-box-gif-12399387153107465639",
+            "https://tenor.com/view/cat-flying-flying-cat-jumpscare-jump-gif-20372835"
         ]
         self.current_vaild_message = None
         self.channel = None
