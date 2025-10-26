@@ -34,7 +34,7 @@ def makepic(candies: Dict) -> Image.Image:
         "Don't run into the road",
         "Big Namu Corp will soon silence me, please hel"
     ]
-    textbox = Textbox("data/textbox/deltarune.toml", Image.open("data/pfp/deltaballinhalloweenfit.png"), "data/fonts/determination-mono.ttf", random.sample(random_dialogue, 1)[0], True, False)
+    textbox = Textbox("data/textbox/deltarune.toml", Image.open("data/pfp/deltaballinhalloweenfit.png"), "data/fonts/determination-mono.ttf", random.choice(random_dialogue), True, False)
     textbox = textbox.render()[0]
 
     label = LabelContainer("data/fonts/determination-mono.ttf", 64, (0, 400), wrap=False)
@@ -157,7 +157,7 @@ class HalloweenCommand(commands.Cog):
 
             elif message.content.lower() == "trick":
                 self.current_vaild_message = None
-                await message.reply(content=random.sample(self.jumpscare_gifs, 1)[0])
+                await message.reply(content=random.choice(self.jumpscare_gifs))
 
     @app_commands.command(name="candy", description="halloween")
     @app_commands.allowed_installs(guilds=True, users=False)
@@ -231,7 +231,7 @@ class HalloweenCommand(commands.Cog):
                 elif candy_name == "testosterone":
                     await interaction.response.send_message(content="man you alr a boy that didn't do anything")
                 else:
-                    await interaction.response.send_message(content=random.sample(self.special_eat_outcomes, 1)[0] if random.getrandbits(1) else "yum")
+                    await interaction.response.send_message(content=random.choice(self.special_eat_outcomes) if random.getrandbits(1) else "yum")
 
                 return await eater_vault.store("halloween2025Candies", eater_candies)
             
