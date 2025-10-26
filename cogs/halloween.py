@@ -102,8 +102,8 @@ class HalloweenCommand(commands.Cog):
         ]
         self.special_eat_outcomes = [
             "candy was spiked D:",
-            "candy had razor blades in it D:"
-            "candy had laxatives in it D: (shits loudly)"
+            "candy had razor blades in it D:",
+            "candy had laxatives in it D: (shits loudly)",
             "```ansi\n[2;32mthe candy was radioactive????????\n```"
         ]
         self.current_vaild_message = None
