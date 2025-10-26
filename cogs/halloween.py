@@ -271,7 +271,7 @@ class HalloweenCommand(commands.Cog):
         await giver_vault.store("halloween2025Candies", giver_candies)
         await reciever_vault.store("halloween2025Candies", reciever_candies)
 
-        await interaction.response.edit_original_response(content=f"{user.mention} congrats on your new {amount} {candy_name} candy from {interaction.user.mention}")
+        await interaction.response.edit_original_response(content=f"{interaction.user.mention} congrats on your new {amount} {candy_name} candy from {user.mention}")
 
     @app_commands.command(name="eat", description="halloween")
     @app_commands.allowed_installs(guilds=True, users=False)
