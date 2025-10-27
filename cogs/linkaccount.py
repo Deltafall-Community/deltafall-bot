@@ -52,9 +52,7 @@ class LinkCommand(commands.Cog):
         else:
             embed=discord.Embed(title="", description=f"## Link\nYou can link your discord account & github account at {self.base_url}/account\nand re-run this command to gain special access.", color=discord.Color.green())
         
-        await interaction.response.send_message(embed=embed)
-
-            
+        await interaction.response.send_message(embed=embed)  
 
 async def setup(bot):
     await bot.add_cog(LinkCommand(bot))
