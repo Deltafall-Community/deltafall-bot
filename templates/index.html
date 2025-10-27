@@ -40,6 +40,7 @@
             margin-top: 20px;
             text-align: center;
             border-radius: 8px;
+            position: relative;
             background-color: #285CC4;
             padding: 15px;
             width: 250px;
@@ -136,8 +137,8 @@
             {% if not github %}
                 <button onclick="window.location.href='/login/github'">Link GitHub</button>
             {% else %}
-                <p>your github account is linked !!</p>
                 <div class="profile-card" id="github-card">
+                    <pre class="location">github</pre>
                     <p>loading your github profile...</p>
                 </div>
 
@@ -148,10 +149,14 @@
                         .then(data => {
                             const card = document.getElementById('github-card');
                             if (data.message === "Not Found") {
-                                card.innerHTML = "<p>Could not load GitHub profile.</p>";
+                                card.innerHTML = `
+                                    <pre class="location">github</pre>
+                                    <p>Could not load GitHub profile.</p>
+                                `;
                                 return;
                             }
                             card.innerHTML = `
+                                <pre class="location">github</pre>
                                 <img src="${data.avatar_url}" alt="GitHub Avatar">
                                 <h3><a href="${data.html_url}" target="_blank">${data.login}</a></h3>
                                 <p>${data.public_repos} repos • ${data.followers} followers</p>
@@ -162,8 +167,6 @@
                         });
                 </script>
             {% endif %}
-
-            <p>this website needs some serious work</p>
         </div>
     </div>
 </body>
