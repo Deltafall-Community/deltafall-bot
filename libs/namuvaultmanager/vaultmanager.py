@@ -70,7 +70,7 @@ class VaultManager():
         return await asyncio.get_running_loop().run_in_executor(None, self.check_connection)
 
     def get_table(self, owner: str, group: Optional[str] = None):
-        return f"{owner}.{group}" if group else owner
+        return f"{owner}.{group}" if group else str(owner)
 
     async def populate_dict_from_db_list(self, array: List[Tuple], dict: Dict):
         loop = asyncio.get_running_loop()
