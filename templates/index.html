@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Welcome</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+        h1 {
+            margin-bottom: 0;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 1em;
+            cursor: pointer;
+            border: none;
+            border-radius: 6px;
+            background-color: #4CAF50;
+            color: white;
+            margin-top: 15px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .profile-card {
+            margin-top: 20px;
+            text-align: center;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            width: 250px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .profile-card img {
+            border-radius: 50%;
+            width: 80px;
+            height: 80px;
+        }
+        .profile-card a {
+            color: #0366d6;
+            text-decoration: none;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>Account</h1>
+    <h2>Hi {{ display_name }}!</h2>
+
+    {% if not github %}
+        <button onclick="window.location.href='/login/github'">Link GitHub</button>
+    {% else %}
+        <p>your github account is linked !!</p>
+        <div class="profile-card" id="github-card">
+            <p>loading your github profile...</p>
+        </div>
+
+        <script>
+            const username = "{{ github }}";
+            fetch(`https://api.github.com/user/${username}`)
+                .then(res => res.json())
+                .then(data => {
+                    const card = document.getElementById('github-card');
+                    if (data.message === "Not Found") {
+                        card.innerHTML = "<p>Could not load GitHub profile.</p>";
+                        return;
+                    }
+                    card.innerHTML = `
+                        <img src="${data.avatar_url}" alt="GitHub Avatar">
+                        <h3><a href="${data.html_url}" target="_blank">${data.login}</a></h3>
+                        <p>${data.public_repos} repos • ${data.followers} followers</p>
+                    `;
+                })
+                .catch(() => {
+                    document.getElementById('github-card').innerHTML = "<p>Failed to load GitHub data.</p>";
+                });
+        </script>
+    {% endif %}
+
+    <p>this website needs some serious work</p>
+</body>
+</html>
