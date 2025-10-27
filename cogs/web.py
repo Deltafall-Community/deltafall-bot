@@ -94,10 +94,6 @@ class WebCommand(commands.Cog):
                     user_info = await resp.json()
                 
             id = user_info.get("id")
-            #debug
-            vault: Vault = await self.vault_manager.get(id)
-            await vault.store("githubUser", None)
-            #debug
             session["id"] = id
 
             return web.HTTPFound("/account")
