@@ -212,6 +212,9 @@ class HalloweenCommand(commands.Cog):
     @app_commands.command(name="request_candy", description="halloween")
     @app_commands.allowed_installs(guilds=True, users=False)
     async def request(self, interaction: discord.Interaction, candy_name: str, user: discord.User, amount: int):
+        if interaction.user == user:
+            return await interaction.response.send_message(content="you cant request yourself candies")
+        
         candy_name = candy_name.lower()
         if candy_name not in self.vaild_candies:
             return await interaction.response.send_message(content=f"{candy_name} is not a vaild candy name")
@@ -224,38 +227,45 @@ class HalloweenCommand(commands.Cog):
         reciever_vault = await self.vault_manager.get(interaction.user.id)
         reciever_candies: Dict = reciever_vault.get("halloween2025Candies", {})
 
-        class ConfirmView(discord.ui.View):
-            def __init__(self):
-                super().__init__(timeout=1800)
-                self.value = None
-
-            @discord.ui.button(label="Accept", style=discord.ButtonStyle.green)
-            async def accept(self, interaction_button: discord.Interaction, button: discord.ui.Button):
-                if interaction_button.user.id != user.id:
-                    return await interaction_button.response.send_message("wasn't asking you dummy", ephemeral=True)
-                self.value = True
-                self.stop()
-                await interaction_button.response.edit_original_response(content=f"{user.display_name} accepted the candy transfer", view=None)
-
-            @discord.ui.button(label="Decline", style=discord.ButtonStyle.red)
-            async def decline(self, interaction_button: discord.Interaction, button: discord.ui.Button):
-                if interaction_button.user.id != user.id:
-                    return await interaction_button.response.send_message("wasn't asking you dummy", ephemeral=True)
-                self.value = False
-                self.stop()
-                await interaction_button.response.edit_original_response(content=f"{user.display_name} declined the candy transfer", view=None)
-
         if (candy_amount := giver_candies.get(candy_name)):            
             if candy_amount < amount:
                 return await interaction.response.send_message(content=f"{user.display_name} only has {candy_amount} of {candy_name}")
             else:
-                view = ConfirmView()
+                accepted = None
+                view = discord.ui.View()
+
+                accept_button = discord.ui.Button(label="Accept", style=discord.ButtonStyle.success)
+                decline_button = discord.ui.Button(label="Decline", style=discord.ButtonStyle.danger)
+
+                async def accept(interaction: discord.Interaction):
+                    nonlocal accepted
+                    if interaction.user.id != user.id:
+                        return await interaction.response.send_message("wasn't asking you dummy", ephemeral=True)
+                    accepted = True
+                    await interaction.response.defer()
+                    view.stop()
+
+                async def decline(interaction: discord.Interaction):
+                    nonlocal accepted
+                    if interaction.user.id != user.id:
+                        return await interaction.response.send_message("wasn't asking you dummy", ephemeral=True)
+                    accepted = False
+                    await interaction.response.defer()
+                    view.stop()
+
+                accept_button.callback = accept
+                decline_button.callback = decline
+
+                view.add_item(accept_button)
+                view.add_item(decline_button)
+
                 await interaction.response.send_message(content=f"{user.mention}, {interaction.user.display_name} wants {amount} {candy_name} candies from you", view=view)
                 await view.wait()
-                if view.value is None:
-                    return await interaction.response.edit_original_response(content=f"{user.mention}, {interaction.user.display_name} wants {amount} {candy_name} candies from you (expired)", view=None)
-                if not view.value:
-                    return
+
+                if accepted is None:
+                    return await interaction.edit_original_response(content=f"{user.mention}, {interaction.user.display_name} wants {amount} {candy_name} candies from you (expired)", view=None)
+                elif not accepted:
+                    return await interaction.edit_original_response(content=f"{user.display_name} declined the candy transfer", view=None)
                 
                 if candy_name not in reciever_candies:
                     reciever_candies[candy_name] = 0
@@ -271,7 +281,7 @@ class HalloweenCommand(commands.Cog):
         await giver_vault.store("halloween2025Candies", giver_candies)
         await reciever_vault.store("halloween2025Candies", reciever_candies)
 
-        await interaction.response.edit_original_response(content=f"{interaction.user.mention} congrats on your new {amount} {candy_name} candy from {user.mention}")
+        await interaction.edit_original_response(content=f"{interaction.user.mention} congrats on your new {amount} {candy_name} candy from {user.mention}", view=None)
 
     @app_commands.command(name="eat", description="halloween")
     @app_commands.allowed_installs(guilds=True, users=False)
