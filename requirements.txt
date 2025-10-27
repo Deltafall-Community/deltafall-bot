@@ -26,3 +26,7 @@ apsw
 toml
 cachetools
 numpy
+aiohttp_session
+cryptography
+jinja2
+async_oauthlib
