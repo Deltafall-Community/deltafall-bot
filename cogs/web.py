@@ -18,7 +18,7 @@ from libs.namuvaultmanager.vaultmanager import VaultManager, Vault
 
 env = Environment(loader=FileSystemLoader('templates'))
 account_template = env.get_template('account.html')
-root_template = env.get_template('root.html')
+root_template = env.get_template('index.html')
 
 DISCORD_AUTH_BASE_URL = "https://discord.com/api/oauth2/authorize"
 DISCORD_TOKEN_URL = "https://discord.com/api/oauth2/token"
