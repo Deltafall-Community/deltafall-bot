@@ -17,7 +17,7 @@ from async_oauthlib import OAuth2Session
 from libs.namuvaultmanager.vaultmanager import VaultManager, Vault
 
 env = Environment(loader=FileSystemLoader('templates'))
-template = env.get_template('index.html')
+account_template = env.get_template('account.html')
 
 DISCORD_AUTH_BASE_URL = "https://discord.com/api/oauth2/authorize"
 DISCORD_TOKEN_URL = "https://discord.com/api/oauth2/token"
@@ -137,7 +137,7 @@ class WebCommand(commands.Cog):
             if githubUserID:
                 properties |= {"github": githubUserID}
 
-            return web.Response(text=template.render(properties), content_type='text/html')
+            return web.Response(text=account_template.render(properties), content_type='text/html')
         
         aiohttp_session.setup(self.app, EncryptedCookieStorage(secret_key=self.key.decode()))
         self.app.add_routes(self.routes)
