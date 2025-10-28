@@ -28,8 +28,9 @@ class messagefun(commands.Cog):
             if not await self.bot.setting_manager.get_user_setting(message.author, ("fun", "teto")):
                 return
             await message.reply("https://tenor.com/view/teto-gif-10942464254842861044")
-        if self.bot.user.mention in message.content():
+        if self.bot.user.mention in message.content:
             await message.reply(":3")
 
 async def setup(bot):
+
     await bot.add_cog(messagefun(bot))
