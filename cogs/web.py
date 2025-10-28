@@ -18,6 +18,7 @@ from libs.namuvaultmanager.vaultmanager import VaultManager, Vault
 
 env = Environment(loader=FileSystemLoader('templates'))
 account_template = env.get_template('account.html')
+root_template = env.get_template('root.html')
 
 DISCORD_AUTH_BASE_URL = "https://discord.com/api/oauth2/authorize"
 DISCORD_TOKEN_URL = "https://discord.com/api/oauth2/token"
@@ -138,6 +139,22 @@ class WebCommand(commands.Cog):
                 properties |= {"github": githubUserID}
 
             return web.Response(text=account_template.render(properties), content_type='text/html')
+
+        @self.routes.get("/")
+        async def root(request: web.Request):
+            session = await get_session(request)
+            id = session.get("id")
+            user: discord.User = await self.bot.fetch_user(id)
+            userDict = dict((name, getattr(user, name)) for name in dir(user) if not name.startswith('__'))
+
+            properties = userDict
+
+            vault: Vault = await self.vault_manager.get(user.id)
+            
+            if id:
+                properties |= {"id": id}
+
+            return web.Response(text=root_template.render(properties), content_type='text/html')
         
         aiohttp_session.setup(self.app, EncryptedCookieStorage(secret_key=self.key.decode()))
         self.app.add_routes(self.routes)
