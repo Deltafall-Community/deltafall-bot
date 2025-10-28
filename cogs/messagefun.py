@@ -32,5 +32,4 @@ class messagefun(commands.Cog):
             await message.reply(":3")
 
 async def setup(bot):
-
     await bot.add_cog(messagefun(bot))
