@@ -1,0 +1,142 @@
+body {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+    font-family: Nunito Sans, Arial, sans-serif;
+    position: relative;
+    overflow: hidden;
+    background-color: #111021;
+    color: white;
+    font-size: 150%;
+}
+h1 {
+    margin-bottom: 0;
+}
+a {
+    color: inherit;
+    text-decoration: underline;
+}
+button {
+    font-size: 1em;
+    cursor: pointer;
+    border: none;
+    border-radius: 6px;
+    margin-top: 15px;
+}
+.login {
+    margin: 8px;
+    padding: 0;
+    width: 40px;
+    height: 40px;
+    background-color: #4CAF50;
+    border: none;
+    cursor: pointer;
+}
+.login:hover {
+    background-color: #45a049;
+}
+.acc {
+    margin: 8px;
+    padding: 0;
+    width: 40px;
+    height: 40px;
+    background-color: #285CC4;
+    border: none;
+    cursor: pointer;
+}
+.acc:hover {
+    background-color: #152345;
+}
+.profile-card {
+    margin-top: 20px;
+    text-align: center;
+    border-radius: 8px;
+    position: relative;
+    background-color: #285CC4;
+    padding: 15px;
+    width: 250px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+.profile-card img {
+    border-radius: 50%;
+    width: 80px;
+    height: 80px;
+}
+.profile-card a {
+    text-decoration: none;
+    font-weight: bold;
+}
+.side-image {
+    position: absolute;
+    top: 0;
+    height: 100%;
+    width: auto;
+    max-width: 25vw;
+    pointer-events: none;
+    image-rendering: pixelated;
+    object-fit: cover;
+}
+.side-image.left {
+    left: 0;
+    transform: none;
+}
+.side-image.right {
+    right: 0;
+    transform: none;
+}
+@media (min-width: 0px) {
+    .side-image.left {
+        left: 0;
+        object-position: right;
+    }
+
+    .side-image.right {
+        right: 0;
+        object-position: left;
+    }
+}
+.main-content {
+    width: 50%;
+    height: 100%;
+    padding-left: 5%;
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: start;
+    text-align: start;
+}
+.account_panel {
+    position: relative;
+    margin-left: auto;
+    
+    top: 5%;
+
+    border-radius: 8px;
+    background-color: #001aff4d;
+
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+}
+.account_panel p {
+    margin: 0;
+    padding-left: 8px;
+    padding-right: 20px;
+}
+.avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 6px;
+}
+.account_icon {
+    position: absolute;
+    right: 0;
+    top: 0;
+    width: 20px;
+    height: 20px;
+    border-radius: 6px;
+}
