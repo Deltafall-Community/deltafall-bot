@@ -1,6 +1,5 @@
 body {
     display: flex;
-    flex-direction: column;
     justify-content: center;
     align-items: center;
     height: 100vh;
@@ -101,7 +100,10 @@ button {
 .main-content {
     width: 50%;
     height: 100%;
-    padding-left: 5%;
+    flex-grow: 2;
+    padding-top: 16vh;
+    padding-left: 16vw;
+    padding-right: 16vw;
     position: relative;
     z-index: 1;
     display: flex;
@@ -112,8 +114,6 @@ button {
 .account_panel {
     position: relative;
     margin-left: auto;
-    
-    top: 5%;
 
     border-radius: 8px;
     background-color: #001aff4d;
