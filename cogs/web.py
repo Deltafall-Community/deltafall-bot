@@ -154,6 +154,7 @@ class WebCommand(commands.Cog):
         
         aiohttp_session.setup(self.app, EncryptedCookieStorage(secret_key=self.key.decode()))
         self.app.add_routes(self.routes)
+        self.app.add_routes([web.static('/static', "static")])
 
 async def setup(bot):
     command = WebCommand(bot)
