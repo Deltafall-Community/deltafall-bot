@@ -144,15 +144,11 @@ class WebCommand(commands.Cog):
         async def root(request: web.Request):
             session = await get_session(request)
             id = session.get("id")
-            user: discord.User = await self.bot.fetch_user(id)
-            userDict = dict((name, getattr(user, name)) for name in dir(user) if not name.startswith('__'))
-
-            properties = userDict
-
-            vault: Vault = await self.vault_manager.get(user.id)
+            properties = {}
             
             if id:
-                properties |= {"id": id}
+                user: discord.User = await self.bot.fetch_user(id)
+                properties = dict((name, getattr(user, name)) for name in dir(user) if not name.startswith('__'))
 
             return web.Response(text=root_template.render(properties), content_type='text/html')
         
