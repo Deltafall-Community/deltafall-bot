@@ -56,6 +56,25 @@ button {
 .donate:hover {
     background-color: #9e4579;
 }
+.manage {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    font-family: Nunito Sans, Arial, sans-serif;
+    font-weight: 800;
+    font-size: medium;
+
+    height: 40px;
+    margin: 8px;
+    padding: 0;
+    background-color: #285CC4;
+    border: none;
+    cursor: pointer;
+}
+.manage:hover {
+    background-color: #152345;
+}
 .acc {
     display: flex;
     align-items: center;
