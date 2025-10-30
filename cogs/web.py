@@ -18,6 +18,7 @@ from libs.namuvaultmanager.vaultmanager import VaultManager, Vault
 
 env = Environment(loader=FileSystemLoader('templates'))
 account_template = env.get_template('account.html')
+donate_template = env.get_template('donate.html')
 root_template = env.get_template('index.html')
 
 DISCORD_AUTH_BASE_URL = "https://discord.com/api/oauth2/authorize"
@@ -139,6 +140,10 @@ class WebCommand(commands.Cog):
                 properties |= {"github": githubUserID}
 
             return web.Response(text=account_template.render(properties), content_type='text/html')
+
+        @self.routes.get("/donate")
+        async def donate(request: web.Request):
+            return web.Response(text=donate_template.render({}), content_type='text/html')
 
         @self.routes.get("/")
         async def root(request: web.Request):
