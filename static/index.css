@@ -37,11 +37,35 @@ button {
 .login:hover {
     background-color: #45a049;
 }
-.acc {
+.donate {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    font-family: Nunito Sans, Arial, sans-serif;
+    font-weight: 800;
+    font-size: medium;
+
+    height: 40px;
     margin: 8px;
     padding: 0;
-    width: 40px;
+    background-color: #bd5290;
+    border: none;
+    cursor: pointer;
+}
+.donate:hover {
+    background-color: #9e4579;
+}
+.acc {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    font-family: Nunito Sans, Arial, sans-serif;
+
     height: 40px;
+    margin: 8px;
+    padding: 0;
     background-color: #285CC4;
     border: none;
     cursor: pointer;
@@ -111,32 +135,43 @@ button {
     align-items: start;
     text-align: start;
 }
-.account_panel {
-    position: relative;
-    margin-left: auto;
-
+.panel_section {
     border-radius: 8px;
     background-color: #001aff4d;
 
     display: flex;
     align-items: center;
-    justify-content: flex-end;
 }
-.account_panel p {
+.panel_section p {
     margin: 0;
     padding-left: 8px;
-    padding-right: 20px;
+    padding-right: 8px;
+}
+.panel {
+    display: flex;
+    flex-wrap: wrap;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+}
+.panel_group {
+    display: flex;
+    flex-wrap: wrap;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
 }
 .avatar {
-    width: 40px;
-    height: 40px;
+    width: 36px;
+    height: 36px;
     border-radius: 6px;
+    margin-right: 8px;
 }
 .account_icon {
-    position: absolute;
-    right: 0;
-    top: 0;
-    width: 20px;
-    height: 20px;
+    width: 24px;
+    height: 24px;
     border-radius: 6px;
+    padding-left: 8px;
 }
