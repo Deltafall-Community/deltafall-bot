@@ -20,7 +20,7 @@
             <h2>Hi {{ display_name }}!</h2>
 
             {% if not github %}
-                <button onclick="window.location.href='/login/github'">Link GitHub</button>
+                <button onclick="window.location.href='/login/github'" style="background-color: #4CAF50;">Link GitHub</button>
             {% else %}
                 <div class="profile-card" id="github-card">
                     <pre class="location">github</pre>
