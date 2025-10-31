@@ -89,6 +89,7 @@ a {
     color: inherit;
     text-decoration: underline;
 }
+
 button {
     font-family: Nunito Sans, Arial, sans-serif;
     font-weight: 800;
@@ -109,16 +110,6 @@ button {
 }
 button:hover {
     filter: brightness(80%);
-}
-
-button.donate {
-    background-color: #bd5290;
-}
-button.manage {
-    background-color: #285CC4;
-}
-button.account {
-    background-color: #4CAF50;
 }
 
 .profile-card {
