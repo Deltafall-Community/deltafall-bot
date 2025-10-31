@@ -97,13 +97,15 @@ button {
     align-items: center;
     justify-content: center;
 
-    height: 40px;
+    min-height: 40px;
     min-width: 40px;
     margin: 8px;
 
     cursor: pointer;
     border: none;
     border-radius: 6px;
+
+    color: white;
 }
 button:hover {
     filter: brightness(80%);
@@ -196,4 +198,25 @@ button.account {
     font-size: 0.8em;
     color: #ccc;
     margin: 0;
+}
+
+.server_container {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+button.server {
+    flex-direction: column;
+    background-color: #111021;
+    padding: 8px;
+}
+.server img, .server svg {
+    border-radius: 6px;
+    border-width: 1px;
+    border-style: solid;
+    border-color: white;
+    width: 86px;
+    height: 86px;
 }
