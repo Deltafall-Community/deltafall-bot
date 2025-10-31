@@ -1,0 +1,222 @@
+body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+    font-family: Nunito Sans, Arial, sans-serif;
+    position: relative;
+    overflow: hidden;
+    background-color: #111021;
+    color: white;
+}
+body.account {
+    flex-direction: column;
+}
+body.index {
+    font-size: 150%;
+}
+
+.main-content {
+    position: relative;
+    display: flex;
+    width: 50%;
+    z-index: 1;
+    flex-direction: column;
+}
+.main-content.account {
+    max-width: 600px;
+    margin: 0;
+    align-items: center;
+    text-align: center;
+}
+.main-content.index {
+    height: 100%;
+    flex-grow: 2;
+    padding-top: 16vh;
+    padding-left: 16vw;
+    padding-right: 16vw;
+    align-items: start;
+    text-align: start;
+}
+
+.content-box {
+    background-color: #152345;
+    border-radius: 20px;
+    padding: 30px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    position: relative;
+    z-index: 1;
+}
+
+.side-image {
+    position: absolute;
+    top: 0;
+    height: 100%;
+    width: auto;
+    max-width: 25vw;
+    pointer-events: none;
+    image-rendering: pixelated;
+    object-fit: cover;
+}
+.side-image.left {
+    left: 0;
+    transform: none;
+}
+.side-image.right {
+    right: 0;
+    transform: none;
+}
+@media (min-width: 0px) {
+    .side-image.left {
+        left: 0;
+        object-position: right;
+    }
+
+    .side-image.right {
+        right: 0;
+        object-position: left;
+    }
+}
+
+h1 {
+    margin-bottom: 0;
+}
+a {
+    color: inherit;
+    text-decoration: underline;
+}
+button {
+    font-family: Nunito Sans, Arial, sans-serif;
+    font-weight: 800;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    min-height: 40px;
+    min-width: 40px;
+    margin: 8px;
+
+    cursor: pointer;
+    border: none;
+    border-radius: 6px;
+
+    color: white;
+}
+button:hover {
+    filter: brightness(80%);
+}
+
+button.donate {
+    background-color: #bd5290;
+}
+button.manage {
+    background-color: #285CC4;
+}
+button.account {
+    background-color: #4CAF50;
+}
+
+.profile-card {
+    position: relative;
+    margin-top: 20px;
+    text-align: center;
+    border-radius: 8px;
+    background-color: #285CC4;
+    padding: 15px;
+    width: 250px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+.profile-card img {
+    border-radius: 50%;
+    width: 80px;
+    height: 80px;
+}
+.profile-card a {
+    text-decoration: none;
+    font-weight: bold;
+}
+
+.panel_section {
+    border-radius: 8px;
+    background-color: #001aff4d;
+
+    display: flex;
+    align-items: center;
+}
+.panel_section p {
+    margin: 0;
+    padding-left: 8px;
+    padding-right: 8px;
+}
+.panel {
+    display: flex;
+    flex-wrap: wrap;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+}
+.panel_group {
+    display: flex;
+    flex-wrap: wrap;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+}
+
+.avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 6px;
+    margin-right: 8px;
+}
+.icon {
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    padding-left: 8px;
+}
+
+.location {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    font-size: 0.8em;
+    color: #ccc;
+    margin: 0;
+}
+.back-button {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    font-size: 0.8em;
+    color: #ccc;
+    margin: 0;
+}
+
+.server_container {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+button.server {
+    flex-direction: column;
+    background-color: #111021;
+    padding: 8px;
+}
+.server img, .server svg {
+    border-radius: 6px;
+    border-width: 1px;
+    border-style: solid;
+    border-color: white;
+    width: 86px;
+    height: 86px;
+}

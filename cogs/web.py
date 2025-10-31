@@ -148,7 +148,16 @@ class WebCommand(commands.Cog):
 
         @self.routes.get("/manage")
         async def manage(request: web.Request):
-            return web.Response(text=manage_template.render({}), content_type='text/html')
+            session = await get_session(request)
+            id = session.get("id")
+            if not id:
+                return web.HTTPFound("/login/discord")
+            user: discord.User = await self.bot.fetch_user(id)
+
+            properties = {}
+            properties["client_id"] = self.bot.user.id
+            properties["servers"] = [{"icon": guild.icon.url, "id": guild.id, "name": guild.name} for guild in user.mutual_guilds]
+            return web.Response(text=manage_template.render(properties), content_type='text/html')
 
         @self.routes.get("/")
         async def root(request: web.Request):
