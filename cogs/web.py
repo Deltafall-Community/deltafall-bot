@@ -156,7 +156,7 @@ class WebCommand(commands.Cog):
 
             properties = {}
             properties["client_id"] = self.bot.user.id
-            properties["servers"] = [{"icon": guild.icon.url, "id": guild.id, "name": guild.name} for guild in user.mutual_guilds]
+            properties["servers"] = [{"icon": guild.icon.url if guild.icon else None, "id": guild.id, "name": guild.name} for guild in user.mutual_guilds]
             return web.Response(text=manage_template.render(properties), content_type='text/html')
 
         @self.routes.get("/")
