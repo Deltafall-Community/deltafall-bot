@@ -1,5 +1,11 @@
 import discord
 from discord.ext import commands
+
+import aiohttp_session
+from aiohttp import web
+from aiohttp_session.cookie_storage import EncryptedCookieStorage
+from cryptography.fernet import Fernet
+
 import os
 import logging
 import asyncio
@@ -49,6 +55,9 @@ class Bot(commands.Bot):
         self.config = config
         self.cogsfolder = "cogs"
 
+        self.host = config["host"]
+        self.port = config["port"]
+
         self.token = self.config["token"]
         self.quote_db = self.connect_quote_db()
         self.scheduler = None
@@ -58,6 +67,26 @@ class Bot(commands.Bot):
 
         self.logger = logger
         super().__init__(command_prefix=prefix if (prefix := self.config.get("prefix")) else "!", intents=discord.Intents.all())
+
+        # session key
+        try:
+            with open("key", "x") as file:
+                self.key = Fernet.generate_key()
+                file.write(self.key.decode())
+        except FileExistsError:
+            with open("key", "r") as file:
+                self.key = file.read().encode()
+
+        self.app = web.Application()
+        self.routes = web.RouteTableDef()
+
+        aiohttp_session.setup(self.app, EncryptedCookieStorage(secret_key=self.key.decode()))
+
+    async def start_web(self):
+        runner = web.AppRunner(self.app)
+        await runner.setup()
+        site = web.TCPSite(runner, host=self.host, port=self.port)
+        await site.start()
 
     async def get_phishing_detector(self):
         self.phishing_detector = await PhishingDetector(logger)
@@ -124,6 +153,7 @@ async def main():
         await bot.get_scheduler()
         await bot.get_phishing_detector()
         await bot.load_extensions()
+        await bot.start_web()
         await bot.start(bot.token)
 
 asyncio.run(main())
