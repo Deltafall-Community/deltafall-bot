@@ -1,7 +1,7 @@
 import discord
 from typing import Tuple
 
-from libs.namusettingmanager.settingmanager import SettingManager
+from libs.namusettingmanager.settingmanager import SettingManager, Entry
 from libs.namuvaultmanager.vaultmanager import VaultManager
 
 class DiscordSettingManager(SettingManager):
@@ -9,6 +9,14 @@ class DiscordSettingManager(SettingManager):
         super().__init__(path)
         self.vault_manager = vault_manager
         
+    @staticmethod
+    def is_missing_permission(entry: Entry, member: discord.Member):
+        missing_perms = []
+        for perm in entry.permissions:
+            if not getattr(member.guild_permissions, perm):
+                missing_perms.append(perm)
+        return missing_perms
+
     async def get_user_setting(self, user: discord.User, entry: Tuple[str]):
         vault = await self.vault_manager.get(user.id)
         settings = self.get("user")

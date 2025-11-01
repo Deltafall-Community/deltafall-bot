@@ -7,13 +7,6 @@ from libs.namuvaultmanager.vaultmanager import VaultManager, Vault
 from libs.namusettingmanager.settingmanager import Settings, Entry, Option
 from libs.namusettingmanager.discordsettingmanager import DiscordSettingManager
 
-def is_missing_permission(entry: Entry, interaction: discord.Interaction):
-    missing_perms = []
-    for perm in entry.permissions:
-        if not getattr(interaction.user.guild_permissions, perm):
-            missing_perms.append(perm)
-    return missing_perms
-
 class ToggleButton(discord.ui.Button):
     def __init__(self, store_callback, active: bool, entry: Entry, *, disabled = False, custom_id = None, url = None, emoji = None, sku_id = None, id = None):
         super().__init__(style=None, label=None, disabled=disabled, custom_id=custom_id, url=url, emoji=emoji, sku_id=sku_id, id=id)
@@ -31,7 +24,7 @@ class ToggleButton(discord.ui.Button):
             self.label = "OFF"
 
     async def callback(self, interaction):
-        if (mp := is_missing_permission(self.entry, interaction)):
+        if (mp := DiscordSettingManager.is_missing_permission(self.entry, interaction.user)):
             await interaction.response.send_message(f"You don't have the following permission(s):\n{', '.join(["`"+p+"`" for p in mp])}", ephemeral=self.ephemeral)
         else:
             self.active = not self.active
@@ -92,7 +85,7 @@ class MultiOptionButton(discord.ui.Button):
         self.ephemeral = ephemeral
 
     async def callback(self, interaction: discord.Interaction):
-        if (mp := is_missing_permission(self.entry, interaction)):
+        if (mp := DiscordSettingManager.is_missing_permission(self.entry, interaction.user)):
             await interaction.response.send_message(f"You don't have the following permission(s):\n{', '.join(["`"+p+"`" for p in mp])}", ephemeral=self.ephemeral)
         else:
             await self.mosr.respond(interaction, self.ephemeral)
