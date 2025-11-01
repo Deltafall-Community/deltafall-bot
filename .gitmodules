@@ -1,0 +1,3 @@
+[submodule "static/oneko.js"]
+	path = static/oneko.js
+	url = https://github.com/adryd325/oneko.js.git
