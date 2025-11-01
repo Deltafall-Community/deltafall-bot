@@ -71,7 +71,7 @@ class Web(commands.Cog):
             return web.Response(text=root_template.render(properties), content_type='text/html')
         
         self.app.add_routes(self.routes)
-        self.app.add_routes([web.static('/static', "static")])
+        self.app.add_routes([web.static('/templates/static', "static")])
 
 async def setup(bot):
     await bot.add_cog(Web(bot))

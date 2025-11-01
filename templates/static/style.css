@@ -265,3 +265,7 @@ button.server {
     max-height: 200px;
     max-width: 200px;
 }
+
+.content-box > .split-box:first-child {
+  margin-top: calc(0.8em + 20px);
+}
