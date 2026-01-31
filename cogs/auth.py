@@ -30,13 +30,11 @@ class Auth(commands.Cog):
 
         config: dict = self.bot.config
 
-        self.discord_app_id = config["discord-app-id"]
+        self.redirect = config["redirect"]
         self.discord_app_secret = config["discord-app-secret"]
-        self.discord_app_redirect = config["discord-app-redirect"]
 
         self.github_app_id = config["github-app-id"]
         self.github_app_secret = config["github-app-secret"]
-        self.github_app_redirect = config["github-app-redirect"]
 
         self.vault_manager: VaultManager = self.bot.vault_manager
 
@@ -45,7 +43,7 @@ class Auth(commands.Cog):
 
         @self.routes.get('/login/discord')
         async def discord_login(request: web.Request):
-            oauth = OAuth2Session(client_id=self.discord_app_id, redirect_uri=self.discord_app_redirect, scope=SCOPES)
+            oauth = OAuth2Session(client_id=self.bot.user.id, redirect_uri=self.redirect+"/oauth2/discord", scope=SCOPES)
             await oauth.close()
             authorization_url, state = oauth.authorization_url(DISCORD_AUTH_BASE_URL)
             request.app["oauth_state"] = state
@@ -54,7 +52,7 @@ class Auth(commands.Cog):
         
         @self.routes.get('/login/github')
         async def github_login(request: web.Request):
-            oauth = OAuth2Session(client_id=self.github_app_id, redirect_uri=self.github_app_redirect)
+            oauth = OAuth2Session(client_id=self.github_app_id, redirect_uri=self.redirect+"/oauth2/github")
             await oauth.close()
             authorization_url, state = oauth.authorization_url(GITHUB_AUTH_BASE_URL)
 
@@ -67,7 +65,7 @@ class Auth(commands.Cog):
             code = request.query.get("code")
             state = request.app.get("oauth_state")
 
-            oauth = OAuth2Session(client_id=self.discord_app_id, redirect_uri=self.discord_app_redirect, state=state, scope=SCOPES)
+            oauth = OAuth2Session(client_id=self.bot.user.id, redirect_uri=self.redirect+"/oauth2/discord", state=state, scope=SCOPES)
             token = await oauth.fetch_token(DISCORD_TOKEN_URL, client_secret=self.discord_app_secret, code=code)
             await oauth.close()
 
@@ -89,7 +87,7 @@ class Auth(commands.Cog):
 
             code = request.query.get("code")
 
-            oauth = OAuth2Session(client_id=self.github_app_id, redirect_uri=self.github_app_redirect)
+            oauth = OAuth2Session(client_id=self.github_app_id, redirect_uri=self.redirect+"/oauth2/github")
             token = await oauth.fetch_token(GITHUB_TOKEN_URL, client_secret=self.github_app_secret, code=code)
             await oauth.close()
 
