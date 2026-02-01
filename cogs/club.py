@@ -9,6 +9,7 @@ from discord import app_commands
 
 from libs.namuclubmanager.clubmanager import Club, ClubLight, ClubError, ClubManager
 
+import re
 from typing import List, Optional
 
 paginator_buttons = {
@@ -21,10 +22,9 @@ paginator_buttons = {
 }
 
 class EditClubModal(discord.ui.Modal, title='Edit Club'):
-    def __init__(self, club_manager: ClubManager,  club_command_obj: 'ClubCommand', club: Club):
+    def __init__(self, club_manager: ClubManager, club: Club):
         super().__init__()
         self.club_manager = club_manager
-        self.club_command_obj = club_command_obj
         self.club = club
 
         self.description = discord.ui.TextInput(
@@ -56,7 +56,7 @@ class EditClubModal(discord.ui.Modal, title='Edit Club'):
     async def on_submit(self, interaction: discord.Interaction):
         club = await self.club_manager.edit_club(interaction, interaction.user, self.description.value, self.icon_url.value, self.banner_url.value)
         if club:
-            return await interaction.response.send_message(view=ClubView(club_command=self.club_command_obj, club=club, timeout=None), ephemeral=True, allowed_mentions=discord.AllowedMentions.none())
+            return await interaction.response.send_message(view=ClubView(club=club, timeout=None), ephemeral=True, allowed_mentions=discord.AllowedMentions.none())
         return await interaction.response.send_message("You are not a leader of a club.", ephemeral=True, allowed_mentions=discord.AllowedMentions.none())
 
     async def on_error(self, interaction: discord.Interaction, error: Exception) -> None:
@@ -64,10 +64,9 @@ class EditClubModal(discord.ui.Modal, title='Edit Club'):
         traceback.print_exception(type(error), error, error.__traceback__)
 
 class CreateClubModal(discord.ui.Modal, title='Create Club'):
-    def __init__(self, club_manager: ClubManager, club_command_obj: 'ClubCommand'):
+    def __init__(self, club_manager: ClubManager):
         super().__init__()
         self.club_manager = club_manager
-        self.club_command_obj = club_command_obj
 
         self.name = discord.ui.TextInput(
             label='Name',
@@ -100,11 +99,12 @@ class CreateClubModal(discord.ui.Modal, title='Create Club'):
         self.add_item(self.banner_url)
 
     async def on_submit(self, interaction: discord.Interaction):
+        club_command: ClubCommand = interaction.client.get_cog('ClubCommand')
         club = await self.club_manager.create_club(interaction, interaction.user, self.name.value, self.description.value, self.icon_url.value, self.banner_url.value)
         if club == ClubError.ALREADY_OWNED:
             return await interaction.response.send_message(content="You have already owned a club.")
-        await self.club_command_obj.add_club_to_cache(interaction, club)
-        await interaction.response.send_message(view=ClubView(club_command=self.club_command_obj, club=club, timeout=None), allowed_mentions=discord.AllowedMentions.none())
+        await club_command.add_club_to_cache(interaction, club)
+        await interaction.response.send_message(view=ClubView(club=club, timeout=None), allowed_mentions=discord.AllowedMentions.none())
 
     async def on_error(self, interaction: discord.Interaction, error: Exception) -> None:
         await interaction.response.send_message('Something went wrong.', ephemeral=True)
@@ -140,24 +140,53 @@ class ClubAnnounceModal(discord.ui.Modal, title='Club Announce'):
         await interaction.response.send_message('Something went wrong.', ephemeral=True)
         traceback.print_exception(type(error), error, error.__traceback__)
 
-class JoinClubButton(discord.ui.Button):
-    def __init__(self, club_command: 'ClubCommand', club: Club, *, style = discord.ButtonStyle.secondary, label = None, disabled = False, custom_id = None, url = None, emoji = None, sku_id = None, id = None):
-        self.club_command = club_command
-        self.club = club
-        super().__init__(style=style, label=label, disabled=disabled, custom_id=custom_id, url=url, emoji=emoji, sku_id=sku_id, id=id)
+class DynamicJoinButton(discord.ui.DynamicItem[discord.ui.Button], template=r'join_club:(?P<id>[0-9]+)'):
+    def __init__(self, leader_id: int) -> None:
+        super().__init__(discord.ui.Button(label='Join Club', style=discord.ButtonStyle.success, custom_id=f'join_club:{leader_id}',))
+        self.leader_id: int = leader_id
 
-    async def callback(self, interaction):
-        await self.club_command.join_club(interaction, self.club.leader)
+    @classmethod
+    async def from_custom_id(cls, interaction: discord.Interaction, item: discord.ui.Button, match: re.Match[str], /):
+        leader_id = int(match['id'])
+        return cls(leader_id)
 
-class ListClubMemberButton(discord.ui.Button):
-    def __init__(self, club: Club, *, style = discord.ButtonStyle.secondary, label = None, disabled = False, custom_id = None, url = None, emoji = None, sku_id = None, id = None):
-        self.club = club
-        super().__init__(style=style, label=label, disabled=disabled, custom_id=custom_id, url=url, emoji=emoji, sku_id=sku_id, id=id)
+    async def callback(self, interaction: discord.Interaction) -> None:
+        club_command: ClubCommand = interaction.client.get_cog('ClubCommand')
+        leader = club_command.bot.get_user(self.leader_id) or await club_command.bot.fetch_user(self.leader_id)
+        if interaction.user == leader:
+            return await interaction.response.send_message("You can't join your own club, Duh.", ephemeral=True)
+        
+        await interaction.response.defer(ephemeral=True)
 
-    async def callback(self, interaction):
+        club = await club_command.club_manager.join_club(interaction, interaction.user, leader)
+        if club == ClubError.ALREADY_JOINED:
+            return await interaction.followup.send(f"You have already joined {leader.mention}'s club.", ephemeral=True, allowed_mentions=discord.AllowedMentions.none())
+        elif club:
+            await interaction.message.edit(view=ClubView(club=await club_command.club_manager.get_club(interaction, leader), timeout=None))
+            return await interaction.followup.send(f"Joined {leader.mention}'s club.", ephemeral=True, allowed_mentions=discord.AllowedMentions.none())
+
+        return await interaction.followup.send(f"No club was owned by {leader.mention}", ephemeral=True, allowed_mentions=discord.AllowedMentions.none())
+
+class DynamicListMembers(discord.ui.DynamicItem[discord.ui.Button], template=r'list_members:(?P<id>[0-9]+)'):
+    def __init__(self, leader_id: int) -> None:
+        super().__init__(discord.ui.Button( label='List Member(s)', style=discord.ButtonStyle.primary, custom_id=f'list_members:{leader_id}'))
+        self.leader_id: int = leader_id
+
+    @classmethod
+    async def from_custom_id(cls, interaction: discord.Interaction, item: discord.ui.Button, match: re.Match[str], /):
+        leader_id = int(match['id'])
+        return cls(leader_id)
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        club_command: ClubCommand = interaction.client.get_cog('ClubCommand')
+        leader = club_command.bot.get_user(self.leader_id) or await club_command.bot.fetch_user(self.leader_id)
+        club = await club_command.club_manager.get_club(interaction, leader)
+        if not club:
+            return await interaction.response.send_message("Club not found.", ephemeral=True)
+
         user_list_embeds=[discord.Embed(description="## Member(s)", color=discord.Color.from_rgb(255,255,255))]
         current_page=0
-        for user, index in zip(self.club.users, range(len(self.club.users))):
+        for user, index in zip(club.users, range(len(club.users))):
             if user_list_embeds[current_page].description.count('\n') > 9:
                 current_page+=1
             if len(user_list_embeds) < current_page+1:
@@ -167,7 +196,7 @@ class ListClubMemberButton(discord.ui.Button):
         return await paginator.send(interaction, override_page_kwargs=True, ephemeral=True)
 
 class ClubContainer(discord.ui.Container):
-    def __init__(self, club_command: 'ClubCommand', club: Club, children = ..., *, accent_colour = None, accent_color = None, spoiler = False, id = None):
+    def __init__(self, club: Club, children = ..., *, accent_colour = None, accent_color = None, spoiler = False, id = None):
         super().__init__(accent_colour=accent_colour, accent_color=accent_color, spoiler=spoiler, id=id)
         
         self.add_item(discord.ui.MediaGallery(discord.MediaGalleryItem(club.banner_url)))
@@ -177,13 +206,13 @@ class ClubContainer(discord.ui.Container):
         extras = ""
         if len(vaild_members) != len(club.users):
             extras += f"\n-# Unknown Member: {len(club.users) - len(vaild_members)}"
-        self.add_item(discord.ui.Section(accessory=ListClubMemberButton(club=club, label="List Member(s)", style=discord.ButtonStyle.primary)).add_item(discord.ui.TextDisplay(f"Member: {len(vaild_members)}" + extras)))
-        self.add_item(discord.ui.Section(accessory=JoinClubButton(club_command=club_command, club=club, label="Join Club", style=discord.ButtonStyle.success)).add_item(discord.ui.TextDisplay(f"Led By {(lambda s: s.mention if s.name else "*Unknown User*")(club.leader)}")))
+        self.add_item(discord.ui.Section(accessory=DynamicListMembers(club.leader.id)).add_item(discord.ui.TextDisplay(f"Member: {len(vaild_members)}" + extras)))
+        self.add_item(discord.ui.Section(accessory=DynamicJoinButton(club.leader.id)).add_item(discord.ui.TextDisplay(f"Led By {(lambda s: s.mention if s.name else "*Unknown User*")(club.leader)}")))
 
 class ClubView(discord.ui.LayoutView):
-    def __init__(self, club_command: 'ClubCommand', club: Club, *, timeout = 180):
+    def __init__(self, club: Club, *, timeout = None):
         super().__init__(timeout=timeout)
-        self.add_item(ClubContainer(club_command=club_command, club=club))
+        self.add_item(ClubContainer(club=club))
 
 class ClubCommand(commands.Cog):
     def __init__(self, bot):
@@ -197,6 +226,8 @@ class ClubCommand(commands.Cog):
         self.bot.tree.add_command(self.club_ping_ctx_menu)
         self.clubs_cache = {}
         self.group.allowed_installs = discord.app_commands.AppInstallationType(guild=True, user=False)
+        
+        self.bot.add_view(discord.ui.View(timeout=None).add_item(DynamicJoinButton(0)).add_item(DynamicListMembers(0)))
 
     async def clubs_autocomplete(self, interaction: discord.Interaction, current: str) -> List[app_commands.Choice[str]]:
         matches = process.extract(
@@ -291,7 +322,7 @@ class ClubCommand(commands.Cog):
         await interaction.response.defer()
         club = await self.club_manager.get_club(interaction, leader)
         if club:
-            return await interaction.followup.send(view=ClubView(club_command=self, club=club, timeout=None), allowed_mentions=discord.AllowedMentions.none())
+            return await interaction.followup.send(view=ClubView(club=club, timeout=None), allowed_mentions=discord.AllowedMentions.none())
         return await interaction.followup.send(f"No club was owned by {leader.mention}", ephemeral=False, allowed_mentions=discord.AllowedMentions.none())
 
     @group.command(name="ping", description="ping club members")
