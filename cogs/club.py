@@ -256,14 +256,14 @@ class ClubCommand(commands.Cog):
 
     @group.command(name="create", description="creates your club")
     async def createclub(self, interaction: discord.Interaction):
-        club_modal = CreateClubModal(self.club_manager, self)
+        club_modal = CreateClubModal(self.club_manager)
         await interaction.response.send_modal(club_modal)
 
     @group.command(name="edit", description="edits your club")
     async def editclub(self, interaction: discord.Interaction):
         club = await self.club_manager.get_club(interaction, interaction.user)
         if club:
-            club_modal = EditClubModal(self.club_manager, self, club)
+            club_modal = EditClubModal(self.club_manager, club)
             return await interaction.response.send_modal(club_modal)
         return await interaction.response.send_message("You are not a leader of a club.", ephemeral=True, allowed_mentions=discord.AllowedMentions.none())
 
