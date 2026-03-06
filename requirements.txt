@@ -1,6 +1,7 @@
 discord.py @ git+https://github.com/Rapptz/discord.py
 discord-py-paginators @ git+https://github.com/Soheab/discord-py-paginators
 yt_dlp @ git+https://github.com/yt-dlp/yt-dlp
+yt-dlp-ejs
 davey
 pynacl
 ffmpeg-python
