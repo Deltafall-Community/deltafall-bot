@@ -1,32 +1,26 @@
 discord.py @ git+https://github.com/Rapptz/discord.py
-pynacl
-pillow
-pet-pet-gif
-pilmoji
-python-urbandict
-psutil
-pyyaml
-sqlitecloud
-praw
-beautifulsoup4
-aiohttp
-pymediawiki
-lxml
-asyncinit
-yt_dlp
-ffmpeg-python
 discord-py-paginators @ git+https://github.com/Soheab/discord-py-paginators
+yt_dlp @ git+https://github.com/yt-dlp/yt-dlp
+davey
+pynacl
+ffmpeg-python
+pillow
+toml
+aiohttp
+aiohttp_session
 dateparser
+pet-pet-gif
+psutil
+sqlitecloud
+asyncinit
 soundcloud-lib
 aiosqlite
 MangaDex.py
 rapidfuzz
 humanize
 apsw
-toml
 cachetools
 numpy
-aiohttp_session
 cryptography
 jinja2
 async_oauthlib
