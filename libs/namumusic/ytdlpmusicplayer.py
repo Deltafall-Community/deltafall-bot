@@ -135,7 +135,7 @@ class YTDLPMusicPlayer():
         self.mixer.add_audio_source("music", self.current_song)
         
         if not self.vc.is_playing():
-            self.vc.play(self.mixer, fec=False, signal_type="music", bitrate=512)
+            self.vc.play(self.mixer, signal_type="music", bitrate=512)
         return self.current_song
 
     async def add_song(self, url: str, streamable: bool = True) -> YTDLPAudio:
