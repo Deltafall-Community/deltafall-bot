@@ -279,7 +279,7 @@ class YTDLPAudio(discord.AudioSource):
             traceback.print_exc()
 
         # this gets sent here because the `PlaybackState` doesnt get applied until the player sets it 
-        if self.packet_index == 1:
+        if self.packet_index == self.start_silence_index+1:
             self.start(False)
 
         return packet
