@@ -77,6 +77,9 @@ class YTDLPAudio(discord.AudioSource):
             self.metadata.author = "Discord Attachment"
 
         self.packet_index = 0
+        self.end_silence_index = None
+        self.start_silence_index = None
+
         self.packets = []
         self.total_rms = 0
 
@@ -177,8 +180,6 @@ class YTDLPAudio(discord.AudioSource):
                         break
         self.ffmpeg_process.stdin.close()
     def read_ffmpeg(self) -> None:
-        end_silence=None
-        start_silence=None
         while True:
             pcm = self.ffmpeg_process.stdout.read(3840)
             if not pcm:
@@ -190,20 +191,20 @@ class YTDLPAudio(discord.AudioSource):
                 pcm = audioop.tomono(pcm, 2, 0.5, 0.5) 
                 rms = audioop.rms(pcm, 2)
                 self.packets.append(pcm)
-                if rms < 500:
-                    if not end_silence:
-                        end_silence=len(self.packets)
-                    if not start_silence:
-                        start_silence=len(self.packets)
-                else:
-                    end_silence=None
+                if rms > 500:
+                    if self.start_silence_index is None:
+                        self.start_silence_index = len(self.packets)
+                        self.packet_index = self.start_silence_index
+                    self.end_silence_index = len(self.packets)
                 self.total_rms += rms
+
         if self.packets:
-            if end_silence:
-                self.packets=self.packets[:end_silence]
-            if start_silence:
-                self.packets=self.packets[start_silence:]
-            self.metadata.length = len(self.packets)*0.02
+            if self.start_silence_index is None:
+                self.start_silence_index = 0
+            if self.end_silence_index is None:
+                self.end_silence_index = len(self.packets)
+
+            self.metadata.length = self.end_silence_index*0.02
             self.status = Status.FINISHED
         else:
             self.failed()
@@ -253,7 +254,7 @@ class YTDLPAudio(discord.AudioSource):
             return
 
         self.packet_index += 1
-        if self.packet_index > len(self.packets):
+        if self.packet_index > self.end_silence_index:
             if self.playback_state == PlaybackState.FINISHED:
                 return b''
             if not self.loop:
@@ -263,7 +264,7 @@ class YTDLPAudio(discord.AudioSource):
                 self.playback_state = PlaybackState.FINISHED
                 self.clean_up()
                 return b''
-            self.packet_index = 0
+            self.packet_index = self.start_silence_index
 
         packet = audioop.tostereo(self.packets[self.packet_index-1], 2, 1.0, 1.0)
         # discord.py for some reason does not like mono audio so we have to convert it back to stereo
