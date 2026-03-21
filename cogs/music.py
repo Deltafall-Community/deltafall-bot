@@ -37,7 +37,7 @@ class music(commands.Cog):
         return player
 
     def delete_guild_player(self, voice_client: discord.VoiceClient):
-        player = self.guilds.get(voice_client.guild.id)
+        player: YTDLPMusicPlayer = self.guilds.get(voice_client.guild.id)
         if player:
             player.self_clean_up()
             self.guilds.pop(voice_client.guild.id)

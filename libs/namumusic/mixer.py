@@ -4,6 +4,7 @@ import struct
 class Mixer(discord.AudioSource):
     def __init__(self):
         self.channels = {}
+        self._mixed_buffer = bytearray(3840)
 
     def get_channel(self, channel_str: str):
         channel = self.channels.get(channel_str)
@@ -29,8 +30,6 @@ class Mixer(discord.AudioSource):
             print(f"Mixer {id(self)} Exception While Removing: {e}")
 
     def mix_pcm_16bit(self, pcm1: bytes, pcm2: bytes) -> bytes:
-        mixed_pcm = bytearray()
-
         for i in range(0, 3840, 2):  # Step by 2 because it's 16-bit (2 bytes per sample)
             # Unpack 16-bit samples (little-endian, signed)
             sample1 = struct.unpack_from("<h", pcm1, i)[0]
@@ -39,15 +38,16 @@ class Mixer(discord.AudioSource):
             # Mix the samples (prevent overflow by keeping within int16 range)
             mixed_sample = max(min(sample1 + sample2, 32767), -32768)
 
-            # Pack back into little-endian bytes and add to output
-            mixed_pcm.extend(struct.pack("<h", mixed_sample))
+            # Pack back into little-endian bytes using pre-allocated buffer
+            struct.pack_into("<h", self._mixed_buffer, i, mixed_sample)
 
-        return bytes(mixed_pcm)
+        return bytes(self._mixed_buffer)
 
     def read(self):
         output = None
-        channels = self.channels.values()
-        for channel in channels:
+        channels_to_remove = []
+        
+        for channel_name, channel in list(self.channels.items()):
             for audio_source_index in range(len(channel) - 1, -1, -1):
                 audio_source = channel[audio_source_index]
                 audio_source_output = audio_source.read()
@@ -61,9 +61,21 @@ class Mixer(discord.AudioSource):
                     output = self.mix_pcm_16bit(output, audio_source_output)
                 else:
                     output = audio_source_output
+            
+            if not channel:
+                channels_to_remove.append(channel_name)
+        
+        for channel_name in channels_to_remove:
+            del self.channels[channel_name]
+        
         if not output:
             output = b"\x00" * 3840
         return output
     
     def is_opus(self):
         return False
+    
+    def clear_channels(self) -> None:
+        for channel in self.channels.values():
+            channel.clear()
+        self.channels.clear()

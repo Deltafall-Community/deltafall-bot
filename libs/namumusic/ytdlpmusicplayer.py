@@ -39,6 +39,9 @@ class YTDLPMusicPlayer():
     def self_clean_up(self):
         for song in self.queue:
             song.clean_up()
+        self.queue.clear()
+        self.mixer.clear_channels()
+        self.current_song = None
 
     def clean_up(self, audio) -> None:
         try:
