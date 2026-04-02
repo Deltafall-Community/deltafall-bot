@@ -13,7 +13,7 @@ from discord.ext.paginators.button_paginator import ButtonPaginator, PaginatorBu
 import dateparser
 from libs.namuscheduler.scheduler import Scheduler, Payload
 from datetime import datetime
-import time
+from datetime import timedelta
 
 paginator_buttons = {
     "FIRST": PaginatorButton(label="", position=0),
@@ -85,8 +85,9 @@ class ReminderCommand(commands.Cog):
     async def create_reminder(self, interaction: discord.Interaction, on: str, message: Optional[str]):
         await interaction.response.defer()
         on: datetime = dateparser.parse(on)
-        if on.timestamp() < time.time():
-            on = datetime.fromtimestamp(time.time()+(time.time()-on.timestamp()))
+        now: datetime = datetime.now(on.tzinfo).timestamp()
+        if on.timestamp() < now:
+            on += timedelta(days=1)
         reminder = Reminder(interaction.channel.id, interaction.user.id, message)
         await self.scheduler.add_payload(interaction.guild.id, on, reminder)
         await interaction.followup.send(f"Reminder{f": {message} " if message else " "}going off <t:{str(int(on.timestamp()))}:R>.", allowed_mentions=discord.AllowedMentions(users=[interaction.user], everyone=False, roles=False))
